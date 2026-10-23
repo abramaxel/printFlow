@@ -6,12 +6,12 @@
     <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
             <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-            Manajemen Penagihan & Pembayaran
+            Manajemen Penagihan &amp; Pembayaran
         </h3>
 
         @php
-            $itemsFinal = $order->items->sum('final_subtotal');
-            $liveShipping = $this->isPickup() ? 0 : (float) $shipping_cost;
+            $itemsFinal = $this->breakdown()['total_final'];
+            $liveShipping = $this->liveShipping();
             $liveGrand = round($itemsFinal + $liveShipping, 2);
         @endphp
 
@@ -96,6 +96,8 @@
                         </div>
                     </div>
                 @endif
+
+                <p class="text-[11px] text-gray-400">*Seluruh harga sudah termasuk pajak (PPN). Tidak ada input pajak terpisah.</p>
 
                 <x-ui.button type="submit" variant="primary" class="w-full justify-center" wire:loading.attr="disabled" wire:target="generateInvoice">
                     <span wire:loading.remove wire:target="generateInvoice">Generate Invoice (Rp {{ number_format($liveGrand, 0, ',', '.') }})</span>

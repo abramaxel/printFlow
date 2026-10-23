@@ -63,9 +63,9 @@ class Invoice extends Model
         return 'Rp ' . number_format($this->total_amount, 0, ',', '.');
     }
     
-        /**
-     * Rincian biaya granular per baris item.
-     * Standar referensi: EN 16931-1 (line-item breakdown: unit price, qty, allowance/charge).
+     /**
+     * Rincian biaya granular per baris item (standar line-item EN 16931-1).
+     * SUMBER KEBENARAN = snapshot kolom order_items; relasi live hanya fallback ber-guard.
      */
     public static function costBreakdown($order): array
     {
@@ -82,11 +82,11 @@ class Invoice extends Model
             $discount     = round((float) $item->discount, 2);
             $final        = round((float) $item->final_subtotal, 2);
 
-            // NAMA & HARI: snapshot dulu, fallback live, terakhir '—' (JUJUR, bukan 'Normal')
+            // Snapshot dulu → fallback live (hanya jika relasi duration() memang ada) → '—' (jujur)
             $snapName = $item->duration_name ?? null;
-            $liveName = optional($item->duration)->name ?? null;
             $snapDays = $item->duration_days ?? null;
-            $liveDays = optional($item->duration)->days ?? null;
+            $liveName = method_exists($item, 'duration') ? (optional($item->duration)->name ?? null) : null;
+            $liveDays = method_exists($item, 'duration') ? (optional($item->duration)->days ?? null) : null;
 
             $lines[] = [
                 'service'       => optional($item->service)->name ?? '-',

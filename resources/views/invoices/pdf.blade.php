@@ -44,7 +44,6 @@
     $statusText = $invoice->status === 'paid' ? 'LUNAS' : ($paid > 0 ? 'DIBAYAR SEBAGIAN' : 'BELUM DIBAYAR');
 @endphp
 
-{{-- ===== HEADER ===== --}}
 <table style="margin-bottom: 14px;">
     <tr>
         <td style="width: 60%; vertical-align: top;">
@@ -59,7 +58,6 @@
     </tr>
 </table>
 
-{{-- ===== DITAGIHKAN + STATUS ===== --}}
 <table style="margin-bottom: 12px;">
     <tr>
         <td style="width: 50%; vertical-align: top; padding-right: 12px;">
@@ -72,7 +70,7 @@
             @endif
         </td>
         <td style="width: 50%; vertical-align: top;">
-            <p class="section-title">Status & Pengiriman</p>
+            <p class="section-title">Status &amp; Pengiriman</p>
             <div class="small">Metode: <span class="bold">{{ $shipLabel }}</span></div>
             <div class="small">Estimasi Selesai: <span class="bold">{{ $order->deadline_date ? $order->deadline_date->format('d M Y') : '-' }}</span></div>
             <div class="small">Pembayaran: <span class="bold">{{ $invoice->payment_method === 'cash' ? 'Tunai di Toko' : 'Transfer Bank' }}{{ $invoice->payment_scheme === 'installment' ? ' (Cicilan)' : '' }}</span></div>
@@ -80,7 +78,6 @@
     </tr>
 </table>
 
-{{-- ===== KOTAK STATISTIK ===== --}}
 <table class="box-table" style="margin-bottom: 14px;">
     <tr>
         <td style="width: 25%;"><div class="stat-label">Tanggal Invoice</div><div class="stat-value">{{ $invoice->created_at->format('d M Y') }}</div></td>
@@ -90,7 +87,6 @@
     </tr>
 </table>
 
-{{-- ===== TABEL ITEM ===== --}}
 <table class="items-table">
     <thead>
         <tr>
@@ -120,7 +116,6 @@
     </tbody>
 </table>
 
-{{-- ===== PETUNJUK BAYAR + TOTAL ===== --}}
 <table style="margin-top: 12px;">
     <tr>
         <td style="width: 52%; vertical-align: top; padding-right: 12px;">
@@ -171,12 +166,10 @@
     </tr>
 </table>
 
-{{-- ===== CATATAN PPN ===== --}}
 <p class="note" style="margin-top: 12px;">
     <span class="bold">Catatan Perpajakan (PPN):</span> Seluruh harga pada invoice ini sudah termasuk Pajak Pertambahan Nilai (PPN) sesuai ketentuan peraturan perundang-undangan (UU PPN s.t.d.d. UU No. 7/2021 tentang HPP jo. PP No. 44/2022). Tidak ada pungutan pajak tambahan di luar Total Tagihan.
 </p>
 
-{{-- ===== FOOTER ===== --}}
 <table style="margin-top: 18px; border-top: 1px solid #e5e7eb;">
     <tr>
         <td class="small muted" style="padding-top: 8px;">Terima kasih atas kepercayaan Anda menggunakan jasa cetak PrintOrder.</td>

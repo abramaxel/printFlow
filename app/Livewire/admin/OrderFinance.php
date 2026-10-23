@@ -18,7 +18,7 @@ class OrderFinance extends Component
     public $order;
     public $order_id;
 
-    // Form invoice (PAJAK DIHAPUS - harga sudah include PPN)
+    // Invoice (PAJAK DIHAPUS — harga sudah include PPN)
     public $shipping_cost = 0;
     public $payment_method = 'transfer';   // cash | transfer
     public $payment_scheme = 'full';       // full | installment
@@ -45,7 +45,7 @@ class OrderFinance extends Component
         'admin_notes'       => 'nullable|string|max:500',
     ];
 
-    public function mount($order)
+    public function mount($order): void
     {
         $this->order = $order;
         $this->order_id = $order->id;
@@ -80,19 +80,20 @@ class OrderFinance extends Component
         return round($this->breakdown()['total_final'] + $this->liveShipping(), 2);
     }
 
+    /** Invoice terkunci bila sudah ada uang masuk / sudah lunas. */
     public function isLocked(): bool
     {
         $inv = $this->order->invoice;
         return $inv && ((float) $inv->total_paid > 0 || $inv->status === 'paid');
     }
 
-    public function updatedPaymentScheme()
+    public function updatedPaymentScheme(): void
     {
         $this->dp_percentage = 0;
         $this->installment_count = 1;
     }
 
-    public function updatedPaymentMethod()
+    public function updatedPaymentMethod(): void
     {
         $this->cash_amount = 0;
         $this->cash_receipt = null;
@@ -109,14 +110,15 @@ class OrderFinance extends Component
             'cash_receipt'   => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
         ]);
 
-        // KUNCI INVOICE: tidak boleh regenerate bila sudah ada uang masuk
+        // KUNCI INVOICE: jangan timpa invoice yang sudah ber-uang-masuk
         if ($this->isLocked()) {
-            $this->addError('shipping_cost', 'Invoice terkunci karena sudah ada pembayaran masuk. Tolak/batalkan pembayaran terlebih dahulu untuk mengubah invoice.');
+            $this->addError('shipping_cost', 'Invoice terkunci karena sudah ada pembayaran masuk. Tolak/batalkan pembayaran dulu untuk mengubah invoice.');
             return;
         }
 
         $bd = $this->breakdown();
-        $total_amount = round($bd['total_final'] + $this->liveShipping(), 2);
+        $subtotal = round($bd['total_final'], 2);
+        $total_amount = round($subtotal + $this->liveShipping(), 2);
 
         if ($this->payment_method === 'cash') {
             $this->validate(['cash_amount' => 'required|numeric|min:1']);
@@ -133,13 +135,11 @@ class OrderFinance extends Component
             ]);
         }
 
-        // Kuitansi tunai
         $receiptPath = null;
         if ($this->payment_method === 'cash' && $this->cash_receipt) {
             $receiptPath = $this->cash_receipt->store('receipts', 'public');
         }
 
-        // Payment schedule (DP + cicilan)
         $paymentSchedule = null;
         $installmentNotes = null;
         if ($this->payment_scheme === 'installment') {
@@ -167,11 +167,11 @@ class OrderFinance extends Component
         $invoice = $this->order->invoice()->updateOrCreate(
             ['order_id' => $this->order->id],
             [
-                'subtotal'          => $bd['total_final'],
+                'subtotal'          => $subtotal,
                 'shipping_cost'     => $this->liveShipping(),
                 'total_amount'      => $total_amount,
                 'total_paid'        => 0,
-                'discount'          => $bd['total_discount'],
+                'discount'          => $bd['total_discount'],   // diskon per-item, bukan 0
                 'status'            => 'unpaid',
                 'due_date'          => now()->addDays(3),
                 'payment_token'     => Str::random(64),
@@ -200,8 +200,9 @@ class OrderFinance extends Component
                 'status'     => $lunas ? 'paid' : 'unpaid',
                 'paid_at'    => $lunas ? now() : null,
             ]);
-            $this->order->update(['status' => 'paid']); // SPK terbit, antre produksi
-            $this->reserveStock($this->order);
+            // Uang masuk => SPK terbit => antre produksi (BUKAN langsung processing)
+            $this->order->update(['status' => 'paid']);
+            $this->reserveStock($this->order);   // reserve sekali, saat uang pertama masuk
 
             session()->flash('finance_success', 'Pembayaran tunai Rp ' . number_format($this->cash_amount, 0, ',', '.') . ' tercatat. ' . ($lunas ? 'LUNAS.' : 'Sisa tagihan menunggu pelunasan.'));
         } else {
@@ -224,8 +225,11 @@ class OrderFinance extends Component
         $payment = Payment::findOrFail($paymentId);
         $invoice = $payment->invoice;
 
-        // Jumlah pembayaran verified SEBELUM transaksi ini (untuk kunci stok sekali saja)
-        $priorVerified = $invoice->payments()->where('status', 'verified')->where('id', '!=', $payment->id)->count();
+        // Uang verified SEBELUM transaksi ini => kunci stok hanya sekali (tambal double-lock)
+        $priorVerified = $invoice->payments()
+            ->where('status', 'verified')
+            ->where('id', '!=', $payment->id)
+            ->count();
 
         $payment->update([
             'status'      => 'verified',
@@ -236,7 +240,6 @@ class OrderFinance extends Component
         $totalPaid = $invoice->payments()->where('status', 'verified')->sum('amount');
         $invoice->update(['total_paid' => $totalPaid]);
 
-        // Geser schedule pending pertama yang nominalnya cocok -> verified
         if ($invoice->payment_schedule) {
             $schedule = $invoice->payment_schedule;
             foreach ($schedule as $i => $row) {
@@ -248,7 +251,6 @@ class OrderFinance extends Component
             $invoice->update(['payment_schedule' => $schedule]);
         }
 
-        // Kunci stok HANYA sekali: saat uang pertama masuk
         if ($priorVerified === 0) {
             $this->reserveStock($invoice->order);
         }
@@ -259,7 +261,7 @@ class OrderFinance extends Component
             session()->flash('finance_success', 'Pembayaran LUNAS diverifikasi! SPK terbit, pesanan masuk antrean produksi.');
         } else {
             $invoice->update(['status' => 'unpaid']);
-            $invoice->order->update(['status' => 'paid']); // DP aman => SPK terbit
+            $invoice->order->update(['status' => 'paid']);   // DP aman => SPK terbit (bukan processing)
             session()->flash('finance_success', 'DP/Cicilan diverifikasi! Sisa tagihan: Rp ' . number_format($invoice->total_amount - $totalPaid, 0, ',', '.'));
         }
 
@@ -275,9 +277,12 @@ class OrderFinance extends Component
         $payment->update(['status' => 'rejected', 'admin_notes' => $this->admin_notes]);
 
         $totalPaid = $invoice->payments()->where('status', 'verified')->sum('amount');
-        $invoice->update(['total_paid' => $totalPaid, 'status' => $totalPaid >= $invoice->total_amount ? 'paid' : 'unpaid']);
+        $invoice->update([
+            'total_paid' => $totalPaid,
+            'status'     => $totalPaid >= $invoice->total_amount ? 'paid' : 'unpaid',
+        ]);
 
-        // Bila tidak ada lagi uang verified, lepaskan kunci stok & kembalikan order ke unpaid
+        // Bila tak ada lagi uang verified => lepas kunci stok & kembalikan order ke unpaid
         if ((float) $totalPaid <= 0) {
             $this->releaseStock($invoice->order);
             $invoice->order->update(['status' => 'unpaid']);
@@ -287,18 +292,16 @@ class OrderFinance extends Component
         $this->admin_notes = '';
     }
 
-    /* ============ STOK ============ */
+    /* ============ STOK (konsisten dgn produksi: pakai area_m2) ============ */
 
-    private function reserveStock($order)
+    private function reserveStock($order): void
     {
         foreach ($order->items as $item) {
-            Material::where('id', $item->material_id)
-                ->where('stock_reserved', '>=', 0)
-                ->increment('stock_reserved', $item->area_m2);
+            Material::where('id', $item->material_id)->increment('stock_reserved', $item->area_m2);
         }
     }
 
-    private function releaseStock($order)
+    private function releaseStock($order): void
     {
         foreach ($order->items as $item) {
             Material::where('id', $item->material_id)
@@ -309,16 +312,10 @@ class OrderFinance extends Component
 
     public function render()
     {
-        // Refresh relasi invoice, payment, items, dan user terbaru
-        // (Perhatikan: 'items.duration' sudah dihapus)
+        // TANPA 'items.duration' => hindari RelationNotFound; snapshot cols ikut baris item
         $this->order = $this->order->fresh([
-            'items.service', 
-            'items.material', 
-            'items.size', 
-            'invoice.payments', 
-            'user'
+            'items.service', 'items.material', 'items.size', 'invoice.payments', 'user',
         ]);
-        
         return view('livewire.admin.order-finance');
     }
 }
