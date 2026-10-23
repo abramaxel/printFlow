@@ -48,6 +48,22 @@
             </a>
         </div>
 
+            <!-- Menu Produksi (Khusus Admin & Super Admin) -->
+            @if(auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isSuperAdmin()))
+                <div class="pt-4 mt-4 border-t border-gray-200">
+                    <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Produksi</p>
+                    @php $isActiveProd = request()->routeIs('admin.production'); @endphp
+                    <a href="{{ route('admin.production') }}" 
+                    class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group
+                    {{ $isActiveProd ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
+                        <svg class="w-5 h-5 mr-3 {{ $isActiveProd ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                        </svg>
+                        Antrian Produksi
+                    </a>
+                </div>
+            @endif 
+
         <!-- Master Data -->
         <div class="pt-4">
             <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Master Data</p>

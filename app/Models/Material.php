@@ -16,6 +16,7 @@ class Material extends Model
         'description',
         'price_per_m2',
         'stock',
+        'stock_reserved',
         'is_active',
     ];
 
@@ -30,5 +31,11 @@ class Material extends Model
     public function category()
     {
         return $this->belongsTo(Category::class);
+    }
+
+    // Helper: Hitung stok yang benar-benar bisa dijual
+    public function getAvailableStockAttribute()
+    {
+        return max(0, $this->stock - $this->stock_reserved);
     }
 }

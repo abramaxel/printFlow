@@ -23,6 +23,11 @@ class OrderItem extends Model
         'final_subtotal',
         'design_file',
         'notes',
+        'duration_id', 
+        'duration_name',
+        'duration_days',
+        'duration_multiplier',
+        'duration_fee',
     ];
 
     protected $casts = [
@@ -31,6 +36,8 @@ class OrderItem extends Model
         'unit_price_material' => 'decimal:2',
         'subtotal' => 'decimal:2',
         'design_file' => 'array',
+        'duration_multiplier' => 'decimal:2',
+        'duration_fee'        => 'decimal:2',
     ];
 
     /**
@@ -64,4 +71,13 @@ class OrderItem extends Model
     {
         return $this->belongsTo(Size::class);
     }
+
+    /**
+     * Relasi ke ProcessingDuration
+     */
+    public function processingDuration()
+    {
+        return $this->belongsTo(ProcessingDuration::class, 'duration_id');
+    }
+
 }

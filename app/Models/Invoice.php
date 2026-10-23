@@ -62,4 +62,63 @@ class Invoice extends Model
     {
         return 'Rp ' . number_format($this->total_amount, 0, ',', '.');
     }
+    
+        /**
+     * Rincian biaya granular per baris item.
+     * Standar referensi: EN 16931-1 (line-item breakdown: unit price, qty, allowance/charge).
+     */
+    public static function costBreakdown($order): array
+    {
+        $lines = [];
+        $totBase = $totFee = $totMaster = $totDiscount = $totFinal = 0.0;
+
+        foreach ($order->items as $item) {
+            $unitService  = (float) $item->unit_price_service;
+            $unitMaterial = (float) $item->unit_price_material;
+            $area         = (float) $item->area_m2;
+            $base         = round(($unitService + $unitMaterial) * $area, 2);
+            $fee          = round((float) $item->duration_fee, 2);
+            $master       = round((float) $item->subtotal, 2);
+            $discount     = round((float) $item->discount, 2);
+            $final        = round((float) $item->final_subtotal, 2);
+
+            // NAMA & HARI: snapshot dulu, fallback live, terakhir '—' (JUJUR, bukan 'Normal')
+            $snapName = $item->duration_name ?? null;
+            $liveName = optional($item->duration)->name ?? null;
+            $snapDays = $item->duration_days ?? null;
+            $liveDays = optional($item->duration)->days ?? null;
+
+            $lines[] = [
+                'service'       => optional($item->service)->name ?? '-',
+                'material'      => optional($item->material)->name ?? '-',
+                'size'          => optional($item->size)->name ?? '-',
+                'duration'      => $snapName ?: ($liveName ?: '—'),
+                'duration_days' => $snapDays ?? $liveDays,
+                'multiplier'    => (float) $item->duration_multiplier,
+                'unit_service'  => $unitService,
+                'unit_material' => $unitMaterial,
+                'unit_combined' => round($unitService + $unitMaterial, 2),
+                'area'          => $area,
+                'qty'           => (int) $item->quantity,
+                'base'          => $base,
+                'fee'           => $fee,
+                'master'        => $master,
+                'discount'      => $discount,
+                'final'         => $final,
+                'notes'         => $item->notes,
+            ];
+
+            $totBase += $base; $totFee += $fee; $totMaster += $master;
+            $totDiscount += $discount; $totFinal += $final;
+        }
+
+        return [
+            'lines'          => $lines,
+            'total_base'     => round($totBase, 2),
+            'total_fee'      => round($totFee, 2),
+            'total_master'   => round($totMaster, 2),
+            'total_discount' => round($totDiscount, 2),
+            'total_final'    => round($totFinal, 2),
+        ];
+    }
 }

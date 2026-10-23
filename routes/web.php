@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
-use App\Livewire\Counter;
+use Illuminate\Http\Request;
 use App\Livewire\Auth\Register;
 use App\Livewire\Auth\Login;
 use App\Livewire\Admin\Dashboard as AdminDashboard;
@@ -12,7 +12,7 @@ use App\Livewire\Admin\Materials;
 use App\Livewire\Admin\Sizes;
 use App\Livewire\Admin\OrderCreate;
 use App\Livewire\Admin\Orders; 
-use Illuminate\Http\Request;
+use App\Livewire\Admin\ProductionQueue;
 use App\Livewire\Admin\OrderShow;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\InvoiceController;
@@ -94,7 +94,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/admin/services', Services::class)->name('admin.services');
     Route::get('/admin/materials', Materials::class)->name('admin.materials');
     Route::get('/admin/sizes', Sizes::class)->name('admin.sizes');
-    
+    Route::get('/admin/production', ProductionQueue::class)->name('admin.production');
+
     // Order Management
     Route::get('/admin/orders', Orders::class)->name('admin.orders'); // Aktifkan nanti
     Route::get('/admin/orders/create', OrderCreate::class)->name('admin.orders.create');

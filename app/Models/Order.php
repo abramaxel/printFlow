@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Order extends Model
 {
     use HasFactory, SoftDeletes;
+    const DAILY_CAPACITY_PER_SERVICE = 5; // Asumsi 1 layanan bisa handle 5 order/haris
 
     protected $fillable = [
         'user_id',
@@ -17,6 +18,14 @@ class Order extends Model
         'delivery_method',
         'shipping_address',
         'notes',
+        'priority', 
+        'deadline_date',
+        'shipping_method',
+        'shipping_address',
+    ];
+
+    protected $casts = [
+        'deadline_date' => 'date',
     ];
 
     /**
@@ -65,5 +74,25 @@ class Order extends Model
     public function histories()
     {
         return $this->hasMany(OrderHistory::class)->latest();
+    }
+
+    public static function getProductionLoad($serviceId)
+    {
+        // Hitung order yang masih aktif (belum selesai/batal) untuk layanan ini
+        $activeOrders = self::whereHas('items', function($q) use ($serviceId) {
+                $q->where('service_id', $serviceId);
+            })
+            ->whereIn('status', ['waiting_invoice', 'unpaid', 'processing', 'qc'])
+            ->count();
+
+        // Rumus Cerdas: (Total Order Aktif / Kapasitas Harian)
+        // Jika ada 10 order banner, dan kapasitas 5/hari -> butuh 2 hari tambahan
+        $estimatedDelayDays = ceil($activeOrders / self::DAILY_CAPACITY_PER_SERVICE);
+
+        return [
+            'active_count' => $activeOrders,
+            'estimated_delay_days' => $estimatedDelayDays,
+            'suggested_deadline' => now()->addDays($estimatedDelayDays)->format('Y-m-d')
+        ];
     }
 }

@@ -61,6 +61,11 @@ class OrderShow extends Component
         // 1. Update Status di Tabel Orders
         $this->order->update(['status' => $this->new_status]);
 
+        // RELEASE STOCK jika status berubah menjadi 'cancelled' atau 'rejected'
+        if (in_array($this->new_status, ['cancelled', 'rejected'])) {
+        $this->releaseStock($this->order);
+    }
+
         // 2. Catat ke Tabel Order Histories (Untuk Timeline Order Track)
         OrderHistory::create([
             'order_id' => $this->order->id,
@@ -77,6 +82,16 @@ class OrderShow extends Component
         $this->order = $this->order->fresh(['histories.user']); 
     }
 
+    private function releaseStock($order)
+    {
+        foreach ($order->items as $item) {
+            // Mengurangi stock_reserved, pastikan tidak minus
+            \App\Models\Material::where('id', $item->material_id)
+                ->where('stock_reserved', '>=', $item->quantity)
+                ->decrement('stock_reserved', $item->quantity);
+        }
+    }
+    
     // Method untuk Update No. WhatsApp Customer
     public function updateCustomerPhone()
     {
