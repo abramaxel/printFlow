@@ -1,134 +1,117 @@
-<aside class="fixed inset-y-0 left-0 z-20 flex flex-col w-64 bg-white border-r border-gray-200 transition-transform transform -translate-x-full md:translate-x-0"
-       x-data="{ open: false }" 
-       :class="open ? 'translate-x-0' : '-translate-x-full'"
-       @click.away="open = false">
-    
-    <!-- Logo Area -->
-    <div class="flex items-center justify-center h-16 border-b border-gray-200">
-        <h1 class="text-xl font-bold text-gray-800">🖨️ Print<span class="text-blue-600">Order</span></h1>
+<aside class="fixed top-0 left-0 z-40 w-64 h-screen transition-transform bg-white border-r border-gray-200">
+    <div class="flex items-center h-16 px-6 border-b border-gray-200">
+        <a href="{{ route('admin.dashboard') }}" class="flex items-center">
+            @if(config('app.brand.logo') && file_exists(public_path(config('app.brand.logo'))))
+                <img src="{{ asset(config('app.brand.logo')) }}" alt="Logo" class="h-8 w-auto mr-2">
+            @else
+                <span class="text-2xl mr-2">🖨️</span>
+            @endif
+            <span class="text-lg font-bold text-gray-800 truncate">{{ config('app.brand.name', 'PrintOrder') }}</span>
+        </a>
     </div>
 
-    <!-- Menu Navigasi -->
-    <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-        
-        <!-- Dashboard -->
-        @php $isActive = request()->routeIs('admin.dashboard'); @endphp
+    <nav class="p-4 space-y-1 overflow-y-auto h-[calc(100vh-4rem)]">
+        {{-- DASHBOARD (Semua Role) --}}
         <a href="{{ route('admin.dashboard') }}" 
-           class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group
-           {{ $isActive ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
-            <svg class="w-5 h-5 mr-3 {{ $isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500' }}" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"></path>
-                <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"></path>
-            </svg>
+           class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.dashboard') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
+            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
             Dashboard
         </a>
 
-        <!-- Manajemen Pesanan -->
-        <div class="pt-4">
-            <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Transaksi</p>
-            
-            @php $isActiveOrders = request()->routeIs('admin.orders'); @endphp
+        @php $userRole = auth()->user()->role ?? ''; @endphp
+
+        {{-- TRANSAKSI (Owner, Admin, CS) --}}
+        @if(in_array($userRole, ['owner', 'super_admin', 'admin', 'cs']))
+        <div class="pt-4 mt-4 border-t border-gray-200">
+            <div class="px-4 text-xs font-semibold text-gray-500 uppercase mb-2">Transaksi</div>
+
             <a href="{{ route('admin.orders') }}" 
-               class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group
-               {{ $isActiveOrders ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
-                <svg class="w-5 h-5 mr-3 {{ $isActiveOrders ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500' }}" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clip-rule="evenodd"></path>
-                </svg>
+               class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.orders') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-3a1 1 0 011-1zm-7 0h3a1 1 0 011 1v3a1 1 0 01-1 1H3a1 1 0 01-1-1v-3a1 1 0 011-1zm0-9h10a1 1 0 011 1v3a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"></path></svg>
                 Daftar Pesanan
             </a>
-            
-            @php $isActiveCreate = request()->routeIs('admin.orders.create'); @endphp
+
             <a href="{{ route('admin.orders.create') }}" 
-               class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group
-               {{ $isActiveCreate ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
-                <svg class="w-5 h-5 mr-3 {{ $isActiveCreate ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
+               class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.orders.create') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Buat Pesanan Baru
             </a>
+
+            {{-- Menu Khusus CS: Perlu Tindak Lanjut (Order QC) --}}
+            @if(in_array($userRole, ['cs', 'admin', 'super_admin', 'owner']))
+                @php $qcCount = \App\Models\Order::where('status', 'qc')->count(); @endphp
+                <a href="{{ route('admin.orders') }}?status=qc" 
+                   class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-orange-50 transition {{ request('status') === 'qc' ? 'bg-orange-50 text-orange-700 font-semibold' : '' }}">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Perlu Tindak Lanjut
+                    @if($qcCount > 0)
+                        <span class="ml-auto bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{{ $qcCount }}</span>
+                    @endif
+                </a>
+            @endif
         </div>
+        @endif
 
-            <!-- Menu Produksi (Khusus Admin & Super Admin) -->
-            @if(auth()->check() && (auth()->user()->isAdmin() || auth()->user()->isSuperAdmin()))
-                <div class="pt-4 mt-4 border-t border-gray-200">
-                    <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Produksi</p>
-                    @php $isActiveProd = request()->routeIs('admin.production'); @endphp
-                    <a href="{{ route('admin.production') }}" 
-                    class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group
-                    {{ $isActiveProd ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
-                        <svg class="w-5 h-5 mr-3 {{ $isActiveProd ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
-                        </svg>
-                        Antrian Produksi
-                    </a>
-                </div>
-            @endif 
+        {{-- PRODUKSI (Owner, Admin Produksi, Super Admin) --}}
+        @if(in_array($userRole, ['owner', 'super_admin', 'produksi']))
+        <div class="pt-4 mt-4 border-t border-gray-200">
+            <div class="px-4 text-xs font-semibold text-gray-500 uppercase mb-2">Produksi</div>
 
-        <!-- Master Data -->
-        <div class="pt-4">
-            <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Master Data</p>
-            
-            @php $isActiveServices = request()->routeIs('admin.services'); @endphp
+            <a href="{{ route('admin.production') }}" 
+               class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.production') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                Antrian Produksi
+            </a>
+        </div>
+        @endif
+
+        {{-- MASTER DATA (Owner, Super Admin, Admin) --}}
+        @if(in_array($userRole, ['owner', 'super_admin', 'admin']))
+        <div class="pt-4 mt-4 border-t border-gray-200">
+            <div class="px-4 text-xs font-semibold text-gray-500 uppercase mb-2">Master Data</div>
+
             <a href="{{ route('admin.services') }}" 
-               class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group
-               {{ $isActiveServices ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
-                <svg class="w-5 h-5 mr-3 {{ $isActiveServices ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500' }}" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
-                </svg>
+               class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.services') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 Kelola Layanan
             </a>
 
-            @php $isActiveMaterials = request()->routeIs('admin.materials'); @endphp
             <a href="{{ route('admin.materials') }}" 
-               class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group
-               {{ $isActiveMaterials ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
-                <svg class="w-5 h-5 mr-3 {{ $isActiveMaterials ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500' }}" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"></path>
-                </svg>
+               class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.materials') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
                 Kelola Bahan
             </a>
 
-            @php $isActiveSizes = request()->routeIs('admin.sizes'); @endphp
             <a href="{{ route('admin.sizes') }}" 
-               class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group
-               {{ $isActiveSizes ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
-                <svg class="w-5 h-5 mr-3 {{ $isActiveSizes ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500' }}" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2zm0 6a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1v-2z" clip-rule="evenodd"></path>
-                </svg>
+               class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.sizes') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
                 Kelola Ukuran
             </a>
         </div>
-
-        <!-- Menu Khusus Super Admin (Owner / CRM) -->
-        @if(auth()->check() && auth()->user()->isSuperAdmin())
-            <div class="pt-4">
-                <p class="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Owner & CRM</p>
-                
-                @php $isActiveReports = request()->routeIs('admin.reports'); @endphp
-                <a href="#" 
-                   class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group
-                   {{ $isActiveReports ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
-                    <svg class="w-5 h-5 mr-3 {{ $isActiveReports ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500' }}" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z"></path>
-                        <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z"></path>
-                    </svg>
-                    Laporan & Statistik
-                </a>
-                
-                @php $isActiveCustomers = request()->routeIs('admin.customers'); @endphp
-                <a href="#" 
-                   class="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 group
-                   {{ $isActiveCustomers ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900' }}">
-                    <svg class="w-5 h-5 mr-3 {{ $isActiveCustomers ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-500' }}" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
-                    </svg>
-                    Manajemen Pelanggan
-                </a>
-            </div>
         @endif
 
+        {{-- OWNER & CRM (Hanya Owner & Super Admin) --}}
+        @if(in_array($userRole, ['owner', 'super_admin']))
+        <div class="pt-4 mt-4 border-t border-gray-200">
+            <div class="px-4 text-xs font-semibold text-gray-500 uppercase mb-2">Owner & CRM</div>
+
+            <a href="{{ route('admin.production-monitor') }}" 
+               class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.production-monitor') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Monitor Produksi
+            </a>
+        </div>
+        @endif
+
+        {{-- LOGOUT --}}
+        <div class="pt-4 mt-4 border-t border-gray-200">
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+                <button type="submit" class="w-full flex items-center px-4 py-2 text-red-600 rounded-lg hover:bg-red-50 transition">
+                    <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    Logout
+                </button>
+            </form>
+        </div>
     </nav>
 </aside>
-
-<!-- Overlay untuk Mobile saat Sidebar terbuka -->
-<div x-show="open" @click="open = false" class="fixed inset-0 z-10 bg-black bg-opacity-50 md:hidden"></div>

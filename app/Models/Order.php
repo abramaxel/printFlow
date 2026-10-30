@@ -95,4 +95,66 @@ class Order extends Model
             'suggested_deadline' => now()->addDays($estimatedDelayDays)->format('Y-m-d')
         ];
     }
+
+        public function incidents()
+    {
+        return $this->hasMany(ProductionIncident::class);
+    }
+
+    /** Anggaran waktu per tahap, sebagai fraksi dari jendela SLA (created_at -> deadline). */
+    public const STAGE_BUDGET = ['paid' => 0.15, 'processing' => 0.60, 'qc' => 0.25];
+
+    /**
+     * Trace produksi: gejala delay otomatis + kemacetan per tahap.
+     * Menghindari API Carbon yang beda antar versi -> hitung via timestamp mentah.
+     */
+    public function productionTrace(): array
+    {
+        $now = now();
+        $terminal = ['completed', 'cancelled', 'rejected'];
+        $stage = $this->status;
+
+        if (in_array($stage, $terminal, true)) {
+            return ['state'=>'done','stage'=>$stage,'stage_since'=>null,'dwell_hours'=>0.0,
+                    'budget_hours'=>null,'overrun'=>false,'hours_left'=>null,'deadline'=>$this->deadline_date];
+        }
+
+        $last = $this->histories()->latest('id')->first();
+        $stageSince = $last?->created_at ?? $this->created_at;
+        $dwell = round(abs($now->getTimestamp() - $stageSince->getTimestamp()) / 3600, 1);
+
+        $budget = null;
+        if ($this->deadline_date && $this->created_at) {
+            $window = ($this->deadline_date->getTimestamp() - $this->created_at->getTimestamp()) / 3600;
+            if ($window > 0 && isset(self::STAGE_BUDGET[$stage])) {
+                $budget = round($window * self::STAGE_BUDGET[$stage], 1);
+            }
+        }
+        $overrun = $budget !== null && $dwell > $budget;
+
+        $hoursLeft = $this->deadline_date
+            ? round(($this->deadline_date->getTimestamp() - $now->getTimestamp()) / 3600, 1)
+            : null;
+
+        if ($this->deadline_date && $now->greaterThan($this->deadline_date->copy()->endOfDay())) {
+            $state = 'delayed';                       // lewat deadline, belum selesai
+        } elseif ($hoursLeft !== null && $hoursLeft <= 24) {
+            $state = 'at_risk';                       // <= 24 jam lagi
+        } elseif ($overrun) {
+            $state = 'stalled';                       // diam terlalu lama di satu tahap
+        } else {
+            $state = 'on_track';
+        }
+
+        return ['state'=>$state,'stage'=>$stage,'stage_since'=>$stageSince,'dwell_hours'=>$dwell,
+                'budget_hours'=>$budget,'overrun'=>$overrun,'hours_left'=>$hoursLeft,'deadline'=>$this->deadline_date];
+    }
+
+    /** Proyeksi deadline bila semua kendala terbuka benar-benar memakan estimasinya. */
+    public function projectedDeadline()
+    {
+        if (!$this->deadline_date) return null;
+        $extra = $this->incidents()->where('status', 'open')->sum('impact_days');
+        return $extra > 0 ? $this->deadline_date->copy()->addDays($extra) : $this->deadline_date;
+    }
 }

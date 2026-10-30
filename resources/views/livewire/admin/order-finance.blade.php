@@ -6,7 +6,7 @@
     <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
             <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-            Manajemen Penagihan &amp; Pembayaran
+            Manajemen Penagihan & Pembayaran
         </h3>
 
         @php
@@ -16,6 +16,7 @@
         @endphp
 
         @if(!$order->invoice)
+            {{-- ============ FORM GENERATE INVOICE ============ --}}
             <form wire:submit="generateInvoice" class="space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
@@ -97,7 +98,7 @@
                     </div>
                 @endif
 
-                <p class="text-[11px] text-gray-400">*Seluruh harga sudah termasuk pajak (PPN). Tidak ada input pajak terpisah.</p>
+                <p class="text-xs text-gray-500 italic">*Seluruh harga sudah termasuk pajak (PPN). Tidak ada input pajak terpisah.</p>
 
                 <x-ui.button type="submit" variant="primary" class="w-full justify-center" wire:loading.attr="disabled" wire:target="generateInvoice">
                     <span wire:loading.remove wire:target="generateInvoice">Generate Invoice (Rp {{ number_format($liveGrand, 0, ',', '.') }})</span>
@@ -105,73 +106,236 @@
                 </x-ui.button>
             </form>
         @else
+            {{-- ============ INVOICE SUDAH ADA ============ --}}
+            
+            {{-- 1. Warning jika terkunci --}}
             @if($this->isLocked())
                 <div class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                    🔒 <strong>Invoice terkunci.</strong> Sudah ada pembayaran masuk (Rp {{ number_format($order->invoice->total_paid, 0, ',', '.') }}). Untuk mengubah invoice, tolak/batalkan pembayaran terlebih dahulu.
+                    🔒 <strong>Invoice Terkunci.</strong> Sudah ada pembayaran masuk (Rp {{ number_format($order->invoice->total_paid, 0, ',', '.') }}). 
+                    Untuk mengubah skema cicilan, Anda harus <strong>Menolak (Reject)</strong> pembayaran tersebut terlebih dahulu di bagian "Riwayat Pembayaran Masuk" di bawah.
                 </div>
             @endif
 
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div class="flex justify-between mb-2">
-                    <span class="text-sm text-gray-600">Status Invoice:</span>
-                    <span class="text-sm font-bold {{ $order->invoice->status == 'paid' ? 'text-green-600' : 'text-yellow-600' }}">{{ strtoupper($order->invoice->status) }}</span>
-                </div>
-                <div class="flex gap-2 my-2">
-                    <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $order->invoice->payment_method == 'cash' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700' }}">{{ $order->invoice->payment_method == 'cash' ? '💵 Tunai' : '🏦 Transfer' }}</span>
-                    <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $order->invoice->payment_scheme == 'installment' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700' }}">{{ $order->invoice->payment_scheme == 'installment' ? '📅 Cicilan' : '✅ Langsung Lunas' }}</span>
-                </div>
-                <div class="flex justify-between text-lg font-bold text-gray-900 mt-2 pt-3 border-t border-blue-200">
-                    <span>Total Tagihan:</span><span>Rp {{ number_format($order->invoice->total_amount, 0, ',', '.') }}</span>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">Jatuh tempo: {{ $order->invoice->due_date?->format('d M Y') }} • Harga sudah termasuk PPN.</p>
-
-                @if($order->invoice->payment_scheme === 'installment' && $order->invoice->payment_schedule)
-                    <div class="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                        <h4 class="text-xs font-bold text-orange-800 mb-2">📋 Skema Pembayaran</h4>
-                        @if($order->invoice->installment_notes)<p class="text-xs text-gray-700 mb-3 italic">{{ $order->invoice->installment_notes }}</p>@endif
-                        <div class="space-y-2">
-                            @foreach($order->invoice->payment_schedule as $schedule)
-                                @php $isPaid = $schedule['status'] === 'verified'; @endphp
-                                <div class="flex justify-between items-center bg-white p-2 rounded border {{ $isPaid ? 'border-green-300' : 'border-yellow-300' }}">
-                                    <div>
-                                        <span class="text-xs font-bold {{ $isPaid ? 'text-green-700' : 'text-gray-700' }}">{{ $schedule['type'] }}</span>
-                                        <span class="text-[10px] text-gray-500 ml-1">{{ $schedule['description'] }}</span>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-xs font-bold">Rp {{ number_format($schedule['amount'], 0, ',', '.') }}</span>
-                                        <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full {{ $isPaid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' }}">{{ $isPaid ? '✓ Lunas' : '⏳ Menunggu' }}</span>
-                                    </div>
-                                </div>
-                            @endforeach
+            {{-- 2. Form Edit jika belum terkunci --}}
+            @if(!$this->isLocked())
+                <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-blue-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <div>
+                            <h4 class="text-sm font-bold text-blue-800">ℹ️ Invoice Dapat Diubah</h4>
+                            <p class="text-xs text-blue-700 mt-1">
+                                Belum ada pembayaran yang diverifikasi. Anda bebas mengubah metode pembayaran, skema cicilan, atau durasi cicilan. 
+                                <br><span class="font-semibold">Catatan:</span> Pastikan tidak ada pembayaran berstatus "Pending" sebelum mengubah skema.
+                            </p>
                         </div>
                     </div>
-                @endif
+                </div>
 
-                @php
-                    $totalPaid = (float) ($order->invoice->total_paid ?? 0);
-                    $totalAmount = (float) $order->invoice->total_amount;
-                    $remaining = $totalAmount - $totalPaid;
-                    $percentage = $totalAmount > 0 ? min(100, ($totalPaid / $totalAmount) * 100) : 0;
-                @endphp
-                <div class="mt-4 pt-4 border-t border-blue-200">
-                    <div class="flex justify-between text-xs font-medium text-gray-600 mb-1">
-                        <span>Progress Pembayaran</span>
-                        <span>Rp {{ number_format($totalPaid, 0, ',', '.') }} / Rp {{ number_format($totalAmount, 0, ',', '.') }}</span>
+                {{-- FORM EDIT SKEMA --}}
+                <form wire:submit="generateInvoice" class="space-y-4 border border-blue-200 p-4 rounded-lg bg-white mb-6">
+                    <h4 class="text-sm font-bold text-gray-800 mb-3">Ubah Skema Pembayaran</h4>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block mb-1 text-xs font-bold text-gray-700 uppercase">Metode Pembayaran</label>
+                            <div class="flex space-x-2">
+                                <label class="flex-1 cursor-pointer">
+                                    <input type="radio" wire:model.live="payment_method" value="transfer" class="hidden peer">
+                                    <div class="text-center py-2 border-2 border-gray-200 rounded-lg peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700 text-sm font-medium transition">🏦 Transfer</div>
+                                </label>
+                                <label class="flex-1 cursor-pointer">
+                                    <input type="radio" wire:model.live="payment_method" value="cash" class="hidden peer">
+                                    <div class="text-center py-2 border-2 border-gray-200 rounded-lg peer-checked:border-green-500 peer-checked:bg-green-50 peer-checked:text-green-700 text-sm font-medium transition"> Tunai</div>
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block mb-1 text-xs font-bold text-gray-700 uppercase">Skema Pembayaran</label>
+                            <div class="flex space-x-2">
+                                <label class="flex-1 cursor-pointer">
+                                    <input type="radio" wire:model.live="payment_scheme" value="full" class="hidden peer">
+                                    <div class="text-center py-2 border-2 border-gray-200 rounded-lg peer-checked:border-blue-500 peer-checked:bg-blue-50 peer-checked:text-blue-700 text-sm font-medium transition">Langsung Lunas</div>
+                                </label>
+                                <label class="flex-1 cursor-pointer">
+                                    <input type="radio" wire:model.live="payment_scheme" value="installment" class="hidden peer">
+                                    <div class="text-center py-2 border-2 border-gray-200 rounded-lg peer-checked:border-orange-500 peer-checked:bg-orange-50 peer-checked:text-orange-700 text-sm font-medium transition">Cicilan / DP</div>
+                                </label>
+                            </div>
+                        </div>
                     </div>
-                    <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-                        <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: {{ $percentage }}%"></div>
-                    </div>
-                    <div class="flex justify-between items-center">
-                        @if($percentage < 100)
-                            <p class="text-xs text-orange-600 font-semibold">⏳ Sisa Tagihan: Rp {{ number_format($remaining, 0, ',', '.') }}</p>
-                            <span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-bold">{{ number_format($percentage, 1) }}% Lunas</span>
-                        @else
-                            <p class="text-xs text-green-600 font-semibold">✅ LUNAS</p>
-                            <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">100% Lunas</span>
-                        @endif
+
+                    @if(!$this->isPickup())
+                        <div>
+                            <label class="block mb-1 text-sm font-medium text-gray-700">Ongkos Kirim (Rp)</label>
+                            <input type="number" wire:model.live="shipping_cost" min="0" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                            @error('shipping_cost') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
+
+                    @if($payment_method === 'cash')
+                        <div class="p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <label class="block mb-1 text-sm font-bold text-green-800">Nominal Tunai Diterima (Rp)</label>
+                            <input type="number" wire:model="cash_amount" class="bg-white border border-green-300 text-gray-900 text-lg font-bold rounded-lg focus:ring-green-500 focus:border-green-500 block w-full p-2.5 mb-3">
+                            @error('cash_amount') <p class="mb-2 text-xs text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
+
+                    @if($payment_scheme === 'installment')
+                        <div class="p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-3">
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block mb-1 text-sm font-bold text-orange-800">DP (% dari Total) *</label>
+                                    <input type="number" wire:model.live="dp_percentage" min="1" max="99" class="bg-white border border-orange-300 text-gray-900 text-lg font-bold rounded-lg focus:ring-orange-500 focus:border-orange-500 block w-full p-2.5">
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-sm font-bold text-orange-800">Jumlah Kali Cicilan *</label>
+                                    <input type="number" wire:model.live="installment_count" min="1" max="12" class="bg-white border border-orange-300 text-gray-900 text-lg font-bold rounded-lg focus:ring-orange-500 focus:border-orange-500 block w-full p-2.5">
+                                </div>
+                            </div>
+                            @error('dp_percentage') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                            @error('installment_count') <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                            
+                            <p class="text-[10px] text-orange-700 italic">💡 Tips: Jika customer ingin langsung melunasi sisa setelah DP, set "Jumlah Kali Cicilan" menjadi <strong>1</strong>.</p>
+
+                            @php
+                                $liveGrandEdit = round($this->breakdown()['total_final'] + $this->liveShipping(), 2);
+                                $dpAmtEdit = round($liveGrandEdit * ($dp_percentage / 100), 2);
+                                $sisaEdit = round($liveGrandEdit - $dpAmtEdit, 2);
+                                $perEdit = $installment_count > 0 ? round($sisaEdit / $installment_count, 2) : 0;
+                            @endphp
+                            <div class="bg-white p-3 rounded border border-orange-200 space-y-1 text-sm">
+                                <div class="flex justify-between"><span class="text-gray-600">Grand Total:</span><span class="font-bold">Rp {{ number_format($liveGrandEdit, 0, ',', '.') }}</span></div>
+                                <div class="flex justify-between"><span class="text-gray-600">DP ({{ $dp_percentage }}%):</span><span class="font-bold text-orange-700">Rp {{ number_format($dpAmtEdit, 0, ',', '.') }}</span></div>
+                                @if($installment_count > 0)
+                                    <div class="flex justify-between border-t pt-1"><span class="text-gray-600">Sisa Tagihan:</span><span class="font-bold text-red-600">Rp {{ number_format($sisaEdit, 0, ',', '.') }}</span></div>
+                                    <div class="flex justify-between"><span class="text-gray-600">Estimasi per Kali Bayar ({{ $installment_count }}x):</span><span class="font-bold text-blue-700">Rp {{ number_format($perEdit, 0, ',', '.') }}</span></div>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+
+                    <x-ui.button type="submit" variant="primary" class="w-full justify-center" wire:loading.attr="disabled" wire:target="generateInvoice">
+                        <span wire:loading.remove wire:target="generateInvoice">💾 Update Skema Pembayaran</span>
+                        <span wire:loading wire:target="generateInvoice">Memperbarui...</span>
+                    </x-ui.button>
+                </form>
+            @endif
+
+            {{-- 3. LOGIKA PEMBATALAN (YANG BENAR) --}}
+            @if($order->invoice->isCancelled())
+                {{-- TAMPILKAN INFO PEMBATALAN --}}
+                <div class="p-4 bg-red-50 border-2 border-red-300 rounded-lg mb-4">
+                    <div class="flex items-start">
+                        <svg class="w-6 h-6 text-red-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div class="flex-1">
+                            <h4 class="text-sm font-bold text-red-800">🚫 INVOICE DIBATALKAN</h4>
+                            <p class="text-xs text-red-700 mt-1">
+                                <strong>Dibatalkan oleh:</strong> {{ $order->invoice->cancelledBy->name ?? 'Unknown' }}
+                                <br>
+                                <strong>Pada:</strong> {{ $order->invoice->cancelled_at->format('d M Y, H:i') }}
+                            </p>
+                            <div class="mt-2 p-2 bg-white rounded border border-red-200">
+                                <p class="text-xs text-gray-700"><strong>Alasan:</strong></p>
+                                <p class="text-sm text-gray-900 italic">"{{ $order->invoice->cancelled_reason }}"</p>
+                            </div>
+                            
+                            @if(in_array(auth()->user()->role, ['owner', 'super_admin']))
+                                <div class="mt-3">
+                                    <p class="text-xs text-red-700 mb-2">💡 Owner dapat membuka kembali invoice ini jika pembatalan tidak sengaja.</p>
+                                    <form wire:submit="reopenInvoice">
+                                        <textarea wire:model="reopen_reason" rows="2" placeholder="Alasan membuka kembali (wajib, min. 10 karakter)..." class="w-full text-xs border border-red-300 rounded p-2 mb-2"></textarea>
+                                        @error('reopen_reason') <p class="text-xs text-red-600 mb-2">{{ $message }}</p> @enderror
+                                        <button type="submit" class="px-3 py-1.5 bg-green-600 text-white text-xs font-semibold rounded hover:bg-green-700" onclick="return confirm('Yakin ingin membuka kembali invoice ini?')">
+                                            🔓 Buka Kembali Invoice
+                                        </button>
+                                    </form>
+                                </div>
+                            @endif
+                        </div>
                     </div>
                 </div>
 
+                {{-- KUNCI SEMUA AKSI --}}
+                <div class="p-4 bg-gray-100 border border-gray-300 rounded-lg text-center">
+                    <p class="text-sm font-semibold text-gray-600">🚫 Invoice ini telah dibatalkan. Semua aksi dinonaktifkan.</p>
+                    <p class="text-xs text-gray-500 mt-1">Lihat detail pembatalan di atas untuk informasi lebih lanjut.</p>
+                </div>
+
+            @else
+                {{-- ============ INVOICE AKTIF (TIDAK DIBATALKAN) ============ --}}
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <div class="flex justify-between mb-2">
+                        <span class="text-sm text-gray-600">Status Invoice:</span>
+                        <span class="text-sm font-bold {{ $order->invoice->status == 'paid' ? 'text-green-600' : 'text-yellow-600' }}">{{ strtoupper($order->invoice->status) }}</span>
+                    </div>
+                    <div class="flex gap-2 my-2">
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $order->invoice->payment_method == 'cash' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700' }}">{{ $order->invoice->payment_method == 'cash' ? '💵 Tunai' : '🏦 Transfer' }}</span>
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full {{ $order->invoice->payment_scheme == 'installment' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-700' }}">{{ $order->invoice->payment_scheme == 'installment' ? '📅 Cicilan' : '✅ Langsung Lunas' }}</span>
+                    </div>
+                    <div class="flex justify-between text-lg font-bold text-gray-900 mt-2 pt-3 border-t border-blue-200">
+                        <span>Total Tagihan:</span><span>Rp {{ number_format($order->invoice->total_amount, 0, ',', '.') }}</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1">Jatuh tempo: {{ $order->invoice->due_date?->format('d M Y') }} • Harga sudah termasuk PPN.</p>
+
+                    @if($order->invoice->payment_scheme === 'installment' && $order->invoice->payment_schedule)
+                        <div class="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                            <h4 class="text-xs font-bold text-orange-800 mb-2">📋 Skema Pembayaran</h4>
+                            @if($order->invoice->installment_notes)<p class="text-xs text-gray-700 mb-3 italic">{{ $order->invoice->installment_notes }}</p>@endif
+                            <div class="space-y-2">
+                                @foreach($order->invoice->payment_schedule as $schedule)
+                                    @php 
+                                        $isPaid = $schedule['status'] === 'verified'; 
+                                        $isEarlyPayoff = str_contains($schedule['description'], 'Dilunasi Dipercepat');
+                                    @endphp
+                                    <div class="flex justify-between items-center bg-white p-2 rounded border {{ $isPaid ? 'border-green-300' : 'border-yellow-300' }}">
+                                        <div>
+                                            <span class="text-xs font-bold {{ $isPaid ? 'text-green-700' : 'text-gray-700' }}">{{ $schedule['type'] }}</span>
+                                            <span class="text-[10px] text-gray-500 ml-1">{{ $schedule['description'] }}</span>
+                                            @if($isEarlyPayoff)
+                                                <span class="ml-1 text-[9px] bg-blue-100 text-blue-700 px-1 rounded">Pelunasan</span>
+                                            @endif
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold">Rp {{ number_format($schedule['amount'], 0, ',', '.') }}</span>
+                                            <span class="px-2 py-0.5 text-[10px] font-semibold rounded-full {{ $isPaid ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700' }}">
+                                                {{ $isPaid ? '✓ Lunas' : '⏳ Menunggu' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @endif
+
+                    @php
+                        $totalPaid = (float) ($order->invoice->total_paid ?? 0);
+                        $totalAmount = (float) $order->invoice->total_amount;
+                        $remaining = $totalAmount - $totalPaid;
+                        $percentage = $totalAmount > 0 ? min(100, ($totalPaid / $totalAmount) * 100) : 0;
+                    @endphp
+                    <div class="mt-4 pt-4 border-t border-blue-200">
+                        <div class="flex justify-between text-xs font-medium text-gray-600 mb-1">
+                            <span>Progress Pembayaran</span>
+                            <span>Rp {{ number_format($totalPaid, 0, ',', '.') }} / Rp {{ number_format($totalAmount, 0, ',', '.') }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                            <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: {{ $percentage }}%"></div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            @if($percentage < 100)
+                                <p class="text-xs text-orange-600 font-semibold">⏳ Sisa Tagihan: Rp {{ number_format($remaining, 0, ',', '.') }}</p>
+                                <span class="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-bold">{{ number_format($percentage, 1) }}% Lunas</span>
+                            @else
+                                <p class="text-xs text-green-600 font-semibold">✅ LUNAS</p>
+                                <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-bold">100% Lunas</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                {{-- PEMBAYARAN PENDING --}}
                 @if($order->invoice->payments()->where('status', 'pending')->count() > 0)
                     <div class="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                         <h4 class="text-xs font-bold text-yellow-800 mb-2">⏳ Menunggu Verifikasi</h4>
@@ -223,6 +387,40 @@
                     </div>
                 @endif
 
+                {{-- FORM PEMBATALAN --}}
+                @if($order->status !== 'completed')
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                        @if($order->invoice->isLocked())
+                            @if(in_array(auth()->user()->role, ['owner', 'super_admin']))
+                                <details class="bg-yellow-50 border border-yellow-200 rounded-lg">
+                                    <summary class="cursor-pointer p-3 text-sm font-semibold text-yellow-800">⚠️ Batalkan Invoice (Owner Only)</summary>
+                                    <div class="p-3 border-t border-yellow-200">
+                                        <p class="text-xs text-yellow-700 mb-2">Invoice ini sudah ada pembayaran masuk (Rp {{ number_format($order->invoice->total_paid, 0, ',', '.') }}). Pembatalan akan melepaskan stok dan mengunci invoice.</p>
+                                        <form wire:submit="cancelInvoice">
+                                            <textarea wire:model="cancel_reason" rows="3" placeholder="Alasan pembatalan (wajib, min. 10 karakter)..." class="w-full text-sm border border-yellow-300 rounded p-2 mb-2"></textarea>
+                                            @error('cancel_reason') <p class="text-xs text-red-600 mb-2">{{ $message }}</p> @enderror
+                                            <button type="submit" class="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700" onclick="return confirm('Yakin ingin membatalkan invoice ini?')"> Batalkan Invoice</button>
+                                        </form>
+                                    </div>
+                                </details>
+                            @endif
+                        @else
+                            <details class="bg-gray-50 border border-gray-200 rounded-lg">
+                                <summary class="cursor-pointer p-3 text-sm font-semibold text-gray-700">🚫 Batalkan Invoice</summary>
+                                <div class="p-3 border-t border-gray-200">
+                                    <p class="text-xs text-gray-600 mb-2">Invoice akan dibatalkan dan stok dilepas.</p>
+                                    <form wire:submit="cancelInvoice">
+                                        <textarea wire:model="cancel_reason" rows="3" placeholder="Alasan pembatalan (wajib, min. 10 karakter)..." class="w-full text-sm border border-gray-300 rounded p-2 mb-2"></textarea>
+                                        @error('cancel_reason') <p class="text-xs text-red-600 mb-2">{{ $message }}</p> @enderror
+                                        <button type="submit" class="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700" onclick="return confirm('Yakin ingin membatalkan invoice ini?')">🚫 Batalkan Invoice</button>
+                                    </form>
+                                </div>
+                            </details>
+                        @endif
+                    </div>
+                @endif
+
+                {{-- TOMBOL AKSI --}}
                 <div class="mt-4 space-y-2">
                     <div class="flex space-x-2">
                         <button onclick="window.open('{{ route('admin.invoices.download', $order->invoice->id) }}')" class="flex-1 flex justify-center items-center px-3 py-2 text-xs font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 transition">🖨️ Print / PDF</button>
@@ -245,7 +443,7 @@
                         </script>
                     @endif
                 </div>
-            </div>
+            @endif
         @endif
     </div>
 </div>

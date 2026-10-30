@@ -13,7 +13,7 @@ class Invoice extends Model
         'order_id',
         'subtotal',
         'shipping_cost',
-        'tax',
+        'tax', // Bisa dihapus jika sudah yakin tidak dipakai
         'discount',
         'total_amount',
         'status',
@@ -21,11 +21,16 @@ class Invoice extends Model
         'paid_at',
         'payment_token',
         'total_paid',
-        'payment_method',     
-        'payment_scheme',      
-        'cash_receipt',        
+        'payment_method',
+        'payment_scheme',
+        'cash_receipt',
         'installment_notes',
-        'payment_schedule',   
+        'payment_schedule',
+        // Kolom Pembatalan (Cancellation)
+        'cancelled_at',
+        'cancelled_by',
+        'cancelled_reason',
+        'is_locked',
     ];
 
     protected $casts = [
@@ -36,7 +41,9 @@ class Invoice extends Model
         'total_amount' => 'decimal:2',
         'due_date' => 'datetime',
         'paid_at' => 'datetime',
+        'cancelled_at' => 'datetime',
         'payment_schedule' => 'array',
+        'is_locked' => 'boolean',
     ];
 
     /**
@@ -48,11 +55,35 @@ class Invoice extends Model
     }
 
     /**
-     * Relasi ke Payments (Satu tagihan bisa dibayar berkali-kali / cicilan)
+     * Relasi ke Payments
      */
     public function payments()
     {
         return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Relasi ke User yang membatalkan invoice
+     */
+    public function cancelledBy()
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
+    }
+
+    /**
+     * Cek apakah invoice sudah dibatalkan
+     */
+    public function isCancelled(): bool
+    {
+        return $this->status === 'cancelled' || !is_null($this->cancelled_at);
+    }
+
+    /**
+     * Cek apakah invoice terkunci (sudah ada pembayaran ATAU sudah dibatalkan)
+     */
+    public function isLocked(): bool
+    {
+        return ((float) $this->total_paid > 0 || $this->status === 'paid') || $this->is_locked;
     }
 
     /**
@@ -62,10 +93,9 @@ class Invoice extends Model
     {
         return 'Rp ' . number_format($this->total_amount, 0, ',', '.');
     }
-    
-     /**
-     * Rincian biaya granular per baris item (standar line-item EN 16931-1).
-     * SUMBER KEBENARAN = snapshot kolom order_items; relasi live hanya fallback ber-guard.
+
+    /**
+     * Rincian biaya granular per baris item
      */
     public static function costBreakdown($order): array
     {
@@ -82,7 +112,6 @@ class Invoice extends Model
             $discount     = round((float) $item->discount, 2);
             $final        = round((float) $item->final_subtotal, 2);
 
-            // Snapshot dulu → fallback live (hanya jika relasi duration() memang ada) → '—' (jujur)
             $snapName = $item->duration_name ?? null;
             $snapDays = $item->duration_days ?? null;
             $liveName = method_exists($item, 'duration') ? (optional($item->duration)->name ?? null) : null;

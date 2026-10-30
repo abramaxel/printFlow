@@ -1,140 +1,114 @@
 <div class="max-w-7xl mx-auto px-4 py-8">
-    <!-- Header & Summary Cards -->
-    <div class="mb-8">
+    {{-- Header + Statistik --}}
+    <div class="mb-6">
         <h2 class="text-2xl font-bold text-gray-800">🏭 Antrian Produksi</h2>
-        <p class="text-sm text-gray-500 mb-4">Kelola pengambilan bahan dan antrean cetak</p>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-blue-500">
-                <p class="text-xs text-gray-500 uppercase font-bold">Total Antrian</p>
-                <p class="text-2xl font-bold text-gray-800">{{ $totalOrders }}</p>
-            </div>
-            <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-green-500">
-                <p class="text-xs text-gray-500 uppercase font-bold">Siap Cetak (Stok Aman)</p>
-                <p class="text-2xl font-bold text-green-600">{{ $readyOrders }}</p>
-            </div>
-            <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-red-500">
-                <p class="text-xs text-gray-500 uppercase font-bold">Tertahan (Stok Kurang)</p>
-                <p class="text-2xl font-bold text-red-600">{{ $shortageOrders }}</p>
-            </div>
+        <p class="text-sm text-gray-500 mb-4">Kelola konfirmasi bahan & alur cetak. Diurutkan: antre-konfirmasi ➔ deadline terdekat.</p>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 border-gray-400"><p class="text-[10px] uppercase font-bold text-gray-500">Total</p><p class="text-xl font-bold text-gray-800">{{ $total }}</p></div>
+            <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 border-yellow-500"><p class="text-[10px] uppercase font-bold text-gray-500">Antre Konfirmasi</p><p class="text-xl font-bold text-yellow-600">{{ $awaiting }}</p></div>
+            <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 border-blue-500"><p class="text-[10px] uppercase font-bold text-gray-500">On Process</p><p class="text-xl font-bold text-blue-600">{{ $onProcess }}</p></div>
+            <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 border-green-500"><p class="text-[10px] uppercase font-bold text-gray-500">Siap Cetak</p><p class="text-xl font-bold text-green-600">{{ $ready }}</p></div>
+            <div class="bg-white p-3 rounded-lg shadow-sm border-l-4 border-red-500"><p class="text-[10px] uppercase font-bold text-gray-500">Tertahan Stok</p><p class="text-xl font-bold text-red-600">{{ $shortage }}</p></div>
         </div>
     </div>
 
-    <!-- Flash Messages -->
+    {{-- Flash --}}
     @if (session()->has('success'))
-        <div class="p-4 mb-6 text-sm text-green-800 rounded-lg bg-green-50 border border-green-200 flex items-center">
-            <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-            {{ session('success') }}
-        </div>
+        <div class="p-3 mb-4 text-sm text-green-800 rounded-lg bg-green-50 border border-green-200">{{ session('success') }}</div>
+    @endif
+    @if (session()->has('error'))
+        <div class="p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50 border border-red-200">{{ session('error') }}</div>
     @endif
 
-    <!-- Search & Filter Bar -->
-    <div class="flex flex-col md:flex-row gap-4 mb-6 bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+    {{-- Search + Filter --}}
+    <div class="flex flex-col md:flex-row gap-3 mb-6 bg-white p-3 rounded-lg shadow-sm border border-gray-200">
         <div class="flex-1 relative">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-            </span>
-            <input type="text" wire:model.live.debounce.300ms="search" placeholder="Cari No. Invoice atau Nama Pelanggan..." class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none"><svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg></span>
+            <input type="text" wire:model.live.debounce.300ms="search" placeholder="Cari No. Invoice / Nama Pelanggan..." class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5">
         </div>
-        <select wire:model.live="stockFilter" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full md:w-48 p-2.5">
-            <option value="">Semua Status Stok</option>
-            <option value="ready">✅ Stok Aman</option>
-            <option value="shortage">⚠️ Stok Kurang</option>
+        <select wire:model.live="statusFilter" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full md:w-56 p-2.5">
+            <option value="">Semua Tahap</option>
+            <option value="awaiting">🟡 Antre Konfirmasi (paid)</option>
+            <option value="onprocess">🔵 On Process (processing)</option>
+            <option value="ready">✅ Siap Cetak (stok aman)</option>
+            <option value="shortage">⚠️ Tertahan (stok kurang)</option>
         </select>
     </div>
 
-    <!-- List Orders -->
+    {{-- List --}}
     @forelse($orders as $order)
-        <div class="bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden transition-all hover:shadow-md">
-            <!-- Header Card Pesanan -->
-            <div class="bg-gray-50 px-6 py-4 border-b border-gray-200 flex flex-col md:flex-row justify-between md:items-center gap-2">
+        @php $isReady = $this->orderReady($order); @endphp
+        <div class="bg-white rounded-xl shadow-sm border {{ $isReady ? 'border-gray-200' : 'border-red-200' }} mb-5 overflow-hidden">
+            {{-- Header --}}
+            <div class="bg-gray-50 px-5 py-3 border-b border-gray-200 flex flex-col md:flex-row justify-between md:items-center gap-2">
                 <div>
-                    <div class="flex items-center gap-2">
-                        <h3 class="text-lg font-bold text-gray-900">{{ $order->invoice_number }}</h3>
-                        <span class="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                            {{ ucfirst(str_replace('_', ' ', $order->status)) }}
-                        </span>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h3 class="text-base font-bold text-gray-900">{{ $order->invoice_number }}</h3>
+                        @if($order->status === 'paid')
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-yellow-100 text-yellow-800">SPK TERBIT – ANTRE KONFIRMASI</span>
+                        @else
+                            <span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-100 text-blue-800">ON PROCESS</span>
+                        @endif
+                        @if(!$isReady)<span class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-red-100 text-red-700 animate-pulse">STOK KURANG</span>@endif
                     </div>
-                    <p class="text-sm text-gray-600">Pelanggan: <span class="font-medium">{{ $order->user->name }}</span> • {{ $order->created_at->format('d M Y, H:i') }}</p>
+                    <p class="text-xs text-gray-600 mt-0.5">{{ $order->user->name }} • {{ $order->created_at->format('d M Y, H:i') }}
+                        @if($order->deadline_date) • 📅 Deadline <strong>{{ $order->deadline_date->format('d M Y') }}</strong>@endif
+                    </p>
                 </div>
-                @if($order->notes)
-                    <div class="text-xs bg-yellow-100 text-yellow-800 px-3 py-1.5 rounded-lg border border-yellow-200 max-w-sm">
-                        <strong>Catatan Admin:</strong> {{ $order->notes }}
-                    </div>
-                @endif
+                @if($order->notes)<div class="text-[11px] bg-yellow-50 text-yellow-800 px-2 py-1 rounded border border-yellow-200 max-w-xs">📝 {{ $order->notes }}</div>@endif
             </div>
 
-            <!-- Tabel Kebutuhan Bahan -->
-            <div class="p-6">
-                <h4 class="text-sm font-bold text-gray-700 uppercase mb-3 flex items-center">
-                    <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
-                    Rincian Material & Desain
-                </h4>
-                
+            {{-- Tabel item --}}
+            <div class="p-5">
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left text-gray-600">
-                        <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                    <table class="w-full text-xs text-left text-gray-600">
+                        <thead class="text-[10px] text-gray-700 uppercase bg-gray-100">
                             <tr>
-                                <th class="px-4 py-3">Item & Desain</th>
-                                <th class="px-4 py-3 text-center">Butuh</th>
-                                <th class="px-4 py-3 text-center">Stok Gudang</th>
-                                <th class="px-4 py-3 text-center font-bold">Status Stok</th>
+                                <th class="px-3 py-2">Item / Spesifikasi &amp; SLA</th>
+                                <th class="px-3 py-2 text-center">Butuh (m²)</th>
+                                <th class="px-3 py-2 text-center">Stok Gudang</th>
+                                <th class="px-3 py-2 text-center">Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach($order->items as $item)
                                 @php
-                                    $required = $item->area_m2;
-                                    $totalStock = $item->material->stock ?? 0;
-                                    $reserved = $item->material->stock_reserved ?? 0;
-                                    $available = max(0, $totalStock - $reserved);
-                                    $isEnough = $available >= $required;
+                                    $stock    = (float) ($item->material->stock ?? 0);
+                                    $reserved = (float) ($item->material->stock_reserved ?? 0);
+                                    $need     = (float) $item->area_m2;
+                                    $avail    = max(0, $stock - $reserved);
+                                    $ok       = $avail >= $need;
+                                    $dName = $item->duration_name ?? (method_exists($item, 'duration') ? optional($item->duration)->name : null) ?? '—';
+                                    $dMult = (float) ($item->duration_multiplier ?? 1);
                                 @endphp
-                                <tr class="border-b border-gray-100 hover:bg-gray-50">
-                                    <td class="px-4 py-4">
-                                        <div class="font-semibold text-gray-900">{{ $item->material->name ?? 'Material Deleted' }}</div>
-                                        <div class="text-xs text-gray-500 mb-2">{{ $item->service->name ?? '-' }} • {{ $item->size->name ?? '-' }} (Qty: {{ $item->quantity }})</div>
-                                        
-                                        <!-- File Desain -->
-                                        @if($item->design_file)
-                                            <div class="flex flex-wrap gap-2 mt-1">
-                                                @foreach((array)$item->design_file as $file)
-                                                    <a href="{{ Storage::url($file) }}" target="_blank" class="inline-flex items-center text-xs text-blue-600 hover:underline bg-blue-50 px-2 py-1 rounded border border-blue-200">
-                                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                                                        Lihat Desain
-                                                    </a>
+                                <tr class="border-b border-gray-100 align-top">
+                                    <td class="px-3 py-3">
+                                        <p class="font-semibold text-gray-900">{{ $item->service->name ?? '-' }}</p>
+                                        <p class="text-[10px] text-gray-500">{{ $item->material->name ?? '-' }} • {{ $item->size->name ?? '-' }} (Qty {{ $item->quantity }})</p>
+                                        <span class="inline-flex items-center px-2 py-0.5 mt-1 rounded-full text-[10px] font-bold
+                                            {{ $dMult >= 2 ? 'bg-red-100 text-red-700' : ($dMult > 1 ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700') }}">
+                                            ⏱ {{ $dName }} (×{{ rtrim(rtrim(number_format($dMult,2,'.',''),'0'),'.') }})
+                                        </span>
+                                        @if($item->notes)<p class="text-[10px] italic text-gray-400 mt-1">"{{ $item->notes }}"</p>@endif
+                                        @if(!empty($item->design_file))
+                                            <div class="flex flex-wrap gap-1 mt-1.5">
+                                                @foreach((array) $item->design_file as $f)
+                                                    <a href="{{ Storage::url($f) }}" target="_blank" class="inline-flex items-center px-2 py-0.5 text-[10px] font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100">📎 {{ Str::limit(basename($f), 18) }}</a>
                                                 @endforeach
                                             </div>
                                         @endif
-
-                                        <!-- Catatan Item -->
-                                        @if($item->notes)
-                                            <div class="mt-2 p-2 bg-yellow-50 border-l-4 border-yellow-400 text-xs text-yellow-800 italic">
-                                                💬 {{ $item->notes }}
-                                            </div>
-                                        @endif
                                     </td>
-                                    <td class="px-4 py-4 text-center font-bold text-blue-700">
-                                        {{ number_format($required, 2) }} m²
+                                    <td class="px-3 py-3 text-center font-bold text-blue-700">{{ number_format($need, 2) }}</td>
+                                    <td class="px-3 py-3 text-center">
+                                        <div class="text-[10px]">Total {{ number_format($stock, 2) }}</div>
+                                        <div class="text-[10px] text-orange-600">Reserve {{ number_format($reserved, 2) }}</div>
+                                        <div class="font-bold mt-0.5 {{ $ok ? 'text-green-600' : 'text-red-600' }}">Sisa {{ number_format($avail, 2) }}</div>
                                     </td>
-                                    <td class="px-4 py-4 text-center text-gray-600">
-                                        <div class="text-xs">Total: {{ number_format($totalStock, 2) }}</div>
-                                        <div class="text-xs text-orange-600">Reserve: {{ number_format($reserved, 2) }}</div>
-                                        <div class="font-bold mt-1 {{ $isEnough ? 'text-green-600' : 'text-red-600' }}">
-                                            Sisa: {{ number_format($available, 2) }}
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-4 text-center">
-                                        @if($isEnough)
-                                            <span class="inline-flex items-center text-xs bg-green-100 text-green-800 px-2.5 py-1 rounded-full font-semibold">
-                                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-                                                Aman
-                                            </span>
+                                    <td class="px-3 py-3 text-center">
+                                        @if($ok)
+                                            <span class="inline-flex items-center text-[10px] bg-green-100 text-green-800 px-2 py-1 rounded-full font-semibold">✓ Aman</span>
                                         @else
-                                            <span class="inline-flex items-center text-xs bg-red-100 text-red-800 px-2.5 py-1 rounded-full font-semibold animate-pulse">
-                                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
-                                                Kurang!
-                                            </span>
+                                            <span class="inline-flex items-center text-[10px] bg-red-100 text-red-800 px-2 py-1 rounded-full font-semibold animate-pulse">⚠ Kurang</span>
                                         @endif
                                     </td>
                                 </tr>
@@ -143,48 +117,114 @@
                     </table>
                 </div>
 
-                <!-- Tombol Aksi Produksi -->
-                <div class="mt-6 flex flex-col sm:flex-row justify-end gap-3 border-t border-gray-100 pt-4">
-                    @php
-                        // Cek apakah semua item di order ini stoknya aman
-                        $allItemsReady = $order->items->every(function($item) {
-                            $available = max(0, ($item->material->stock ?? 0) - ($item->material->stock_reserved ?? 0));
-                            return $available >= $item->area_m2;
-                        });
-                    @endphp
-
-                    @if($order->status === 'processing')
-                        <button 
-                            wire:click="confirmMaterialTakeout({{ $order->id }})"
-                            @if(!$allItemsReady) disabled title="Stok bahan tidak mencukupi!" @endif
-                            wire:confirm="Apakah Anda yakin bahan fisik sudah diambil dari gudang? Stok akan permanen berkurang dan pesanan masuk ke tahap Cetak."
-                            class="flex items-center justify-center px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition shadow-sm disabled:bg-gray-300 disabled:cursor-not-allowed"
-                        >
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                            <span wire:loading.remove wire:target="confirmMaterialTakeout({{ $order->id }})">
-                                {{ $allItemsReady ? 'Konfirmasi Ambil Bahan & Cetak' : 'Stok Kurang (Tahan)' }}
-                            </span>
-                            <span wire:loading wire:target="confirmMaterialTakeout({{ $order->id }})">Memproses...</span>
+                {{-- Aksi (HANYA tombol, tanpa form incident) --}}
+                <div class="mt-4 pt-3 border-t border-gray-100 flex flex-col sm:flex-row justify-end gap-2">
+                    {{-- Tombol Lapor Kendala (TUNGGAL) --}}
+                    @if(in_array($order->status, ['paid', 'processing']))
+                        <button wire:click="openIncident({{ $order->id }})"
+                            class="flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg bg-orange-100 text-orange-700 hover:bg-orange-200 transition">
+                            ⚠ Lapor Kendala
                         </button>
-                    @elseif($order->status === 'printing')
-                         <button 
+                    @endif
+
+                    {{-- Tombol Konfirmasi / QC --}}
+                    @if($order->status === 'paid')
+                        <button
+                            wire:click="confirmMaterialTakeout({{ $order->id }})"
+                            @if(!$isReady) disabled @endif
+                            wire:confirm="Yakin bahan fisik sudah diambil? Stok permanen berkurang & status jadi ON PROCESS."
+                            wire:loading.attr="disabled" wire:target="confirmMaterialTakeout({{ $order->id }})"
+                            class="flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg transition shadow-sm
+                                {{ $isReady ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed' }}">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span wire:loading.remove wire:target="confirmMaterialTakeout({{ $order->id }})">{{ $isReady ? 'Konfirmasi Ambil Bahan & Cetak' : 'Tertahan – Stok Kurang' }}</span>
+                            <span wire:loading wire:target="confirmMaterialTakeout({{ $order->id }})">Memproses…</span>
+                        </button>
+                    @elseif($order->status === 'processing')
+                        <button
                             wire:click="moveToQC({{ $order->id }})"
-                            wire:confirm="Apakah cetak sudah selesai? Pindahkan ke Quality Control (QC)?"
-                            class="flex items-center justify-center px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition shadow-sm"
-                        >
-                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            <span wire:loading.remove wire:target="moveToQC({{ $order->id }})">Selesai Cetak, Lanjut ke QC</span>
-                            <span wire:loading wire:target="moveToQC({{ $order->id }})">Memproses...</span>
+                            wire:confirm="Cetak selesai? Pindahkan ke Quality Control (QC)?"
+                            wire:loading.attr="disabled" wire:target="moveToQC({{ $order->id }})"
+                            class="flex items-center justify-center px-5 py-2.5 text-sm font-semibold rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition shadow-sm">
+                            <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span wire:loading.remove wire:target="moveToQC({{ $order->id }})">Selesai Cetak → QC</span>
+                            <span wire:loading wire:target="moveToQC({{ $order->id }})">Memproses…</span>
                         </button>
                     @endif
                 </div>
+
+                {{-- FORM INCIDENT: label jelas + satuan HARI + preview proyeksi + aksi di bawah --}}
+                @if($incidentFor === $order->id)
+                    <div class="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg space-y-3">
+                        <div>
+                            <h4 class="text-sm font-bold text-orange-800">⚠ Lapor Kendala Produksi — {{ $order->invoice_number }}</h4>
+                            <p class="text-[11px] text-orange-600 mt-0.5">Laporan masuk ke Monitor Produksi Owner beserta estimasi keterlambatan.</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {{-- Jenis kendala --}}
+                            <div>
+                                <label class="block mb-1 text-xs font-semibold text-orange-800">Jenis Kendala</label>
+                                <select wire:model="incidentType" class="w-full bg-white border border-orange-300 text-sm rounded-lg p-2.5">
+                                    @foreach(\App\Models\ProductionIncident::TYPES as $key => $label)
+                                        <option value="{{ $key }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            {{-- Estimasi dampak: SATUAN HARI, ditulis eksplisit --}}
+                            <div>
+                                <label class="block mb-1 text-xs font-semibold text-orange-800">Estimasi Tambahan Keterlambatan</label>
+                                <div class="relative">
+                                    <input type="number" wire:model.live="incidentImpact" min="0" max="30"
+                                        class="w-full bg-white border border-orange-300 text-sm rounded-lg p-2.5 pr-16 font-bold">
+                                    <span class="absolute right-3 top-2.5 text-xs font-bold text-orange-600 uppercase">Hari</span>
+                                </div>
+                                <p class="text-[10px] text-orange-600 mt-1">
+                                    Isi <strong>2</strong> = kendala menambah <strong>2 hari</strong> dari deadline. Isi <strong>0</strong> = tidak mempengaruhi deadline.
+                                </p>
+                            </div>
+                        </div>
+
+                        {{-- Preview proyeksi: membuat arti angka LANGSUNG terlihat --}}
+                        @if($order->deadline_date && (int) $incidentImpact > 0)
+                            <div class="text-[11px] text-orange-700 bg-orange-100 border border-orange-200 rounded-lg p-2.5">
+                                📅 Proyeksi deadline bila kendala ini nyata:
+                                <strong>{{ $order->deadline_date->copy()->addDays((int) $incidentImpact)->format('d M Y') }}</strong>
+                                <span class="text-orange-500">(semula {{ $order->deadline_date->format('d M Y') }})</span>
+                                <span class="block mt-0.5 text-orange-500">Proyeksi hanya informasi — revisi deadline tetap hak Owner di Monitor Produksi.</span>
+                            </div>
+                        @endif
+
+                        {{-- Deskripsi --}}
+                        <div>
+                            <label class="block mb-1 text-xs font-semibold text-orange-800">Penjelasan Kendala <span class="text-red-500">*</span></label>
+                            <textarea wire:model="incidentDesc" rows="2" class="w-full bg-white border border-orange-300 text-sm rounded-lg p-2.5" placeholder="Contoh: Mesin cetak utama rusak, sparepart harus dipesan dulu..."></textarea>
+                            @error('incidentDesc') <p class="text-xs text-red-600 mt-1">{{ $message }}</p> @enderror
+                        </div>
+
+                        {{-- Baris aksi: Batal & Kirim berdampingan di kanan bawah (pola form standar) --}}
+                        <div class="flex justify-end gap-2 pt-1 border-t border-orange-200">
+                            <button wire:click="cancelIncident"
+                                class="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition">
+                                Batal
+                            </button>
+                            <button wire:click="submitIncident({{ $order->id }})"
+                                wire:loading.attr="disabled" wire:target="submitIncident({{ $order->id }})"
+                                class="px-4 py-2 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 transition">
+                                <span wire:loading.remove wire:target="submitIncident({{ $order->id }})">📨 Kirim Laporan ke Owner</span>
+                                <span wire:loading wire:target="submitIncident({{ $order->id }})">Mengirim…</span>
+                            </button>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     @empty
         <div class="text-center py-16 bg-white rounded-xl border border-dashed border-gray-300">
-            <svg class="w-20 h-20 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
-            <p class="text-gray-500 font-medium text-lg">Antrian Kosong 🎉</p>
-            <p class="text-gray-400 text-sm mt-1">Tidak ada pesanan yang sedang dalam tahap produksi saat ini.</p>
+            <svg class="w-16 h-16 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+            <p class="text-gray-500 font-medium">Antrian kosong 🎉</p>
+            <p class="text-gray-400 text-sm">Tidak ada pesanan pada tahap konfirmasi/produksi.</p>
         </div>
     @endforelse
 </div>

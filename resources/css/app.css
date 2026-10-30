@@ -1,11 +1,67 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
-
+/* ===== TEMA FC MURNI JAYA (mint/emerald) ===== */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+  /* Remap skala blue → palet brand mint */
+  --color-blue-50: #EEF8F2;
+  --color-blue-100: #D6F0E2;
+  --color-blue-200: #AEDDC6;
+  --color-blue-300: #7FC8AE;
+  --color-blue-400: #52B294;
+  --color-blue-500: #2E9E7B;
+  --color-blue-600: #248266;
+  --color-blue-700: #1D6853;
+  --color-blue-800: #185343;
+  --color-blue-900: #144437;
+  --color-blue-950: #0A271F;
+
+  /* Alias semantik untuk kode baru */
+  --color-brand-50: #EEF8F2;
+  --color-brand-100: #D6F0E2;
+  --color-brand-200: #AEDDC6;
+  --color-brand-300: #7FC8AE;
+  --color-brand-400: #52B294;
+  --color-brand-500: #2E9E7B;
+  --color-brand-600: #248266;
+  --color-brand-700: #1D6853;
+  --color-brand-800: #185343;
+  --color-brand-900: #144437;
+  --color-brand-950: #0A271F;
+
+  /* Shadow lembut ala referensi */
+  --shadow-card: 0 1px 2px rgba(20, 68, 55, 0.06), 0 8px 24px rgba(20, 68, 55, 0.07);
+}
+
+/* Sentuhan global */
+body {
+  background-color: #F1F6F3;
+}
+
+::selection {
+  background: #AEDDC6;
+  color: #144437;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #CBE3D6;
+  border-radius: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Radius & shadow konsisten */
+.rounded-lg,
+.rounded-xl {
+  border-radius: 1rem;
+}
+
+.shadow-sm {
+  box-shadow: var(--shadow-card);
 }
