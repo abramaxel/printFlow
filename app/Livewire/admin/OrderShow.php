@@ -199,29 +199,45 @@ class OrderShow extends Component
      */
     private function sendWhatsAppNotification($trackingNumber)
     {
+        // 🛡️ SAFE MODE: Jika token belum dikonfigurasi, jangan panggil API
+        $token = config('services.fonnte.token');
+        if (empty($token)) {
+            session()->flash('whatsapp_warning', 
+                '⚠️ WhatsApp gateway belum aktif. Kirim resi MANUAL ke ' . 
+                $this->customer_phone . ' → Resi: ' . $trackingNumber);
+            return;
+        }
+
         $phone = preg_replace('/[^0-9]/', '', $this->customer_phone);
+        if (str_starts_with($phone, '0')) {
+            $phone = '62' . substr($phone, 1);
+        }
+
         $order = $this->order;
-        
         $message = "Halo {$order->user->name}!\n\n" .
             "Pesanan Anda {$order->invoice_number} telah dikirim! 🚚\n\n" .
-            " Nomor Resi: *{$trackingNumber}*\n" .
-            "🚚 Silakan lacak pengiriman Anda melalui website jasa pengiriman.\n\n" .
-            "Terima kasih telah berorder di " . 
-            config('app.brand.name', 'PrintOrder') . "!";
+            "📦 Nomor Resi: *{$trackingNumber}*\n" .
+            "Silakan lacak pengiriman Anda melalui website jasa pengiriman.\n\n" .
+            "Terima kasih telah berorder di " . config('app.brand.name', 'PrintOrder') . "!";
 
         try {
-            // Contoh menggunakan Fonnte API (sesuaikan dengan provider Anda)
-            Http::post('https://api.fonnte.com/send', [
-                'target' => $phone,
-                'message' => $message,
-                'countryCode' => '62'
-            ])->throw();
-            
-            session()->flash('whatsapp_success', 'WhatsApp berhasil dikirim!');
+            $response = Http::withHeaders(['Authorization' => $token])
+                ->asForm()
+                ->post(config('services.fonnte.url'), [
+                    'target' => $phone,
+                    'message' => $message,
+                ]);
+
+            if ($response->successful() && ($response['status'] ?? false)) {
+                session()->flash('whatsapp_success', '✅ WhatsApp resi berhasil dikirim ke customer.');
+            } else {
+                throw new \Exception($response['reason'] ?? 'Fonnte API menolak permintaan');
+            }
         } catch (\Exception $e) {
-            Log::error('WhatsApp failed: ' . $e->getMessage());
+            \Log::error('WhatsApp failed: ' . $e->getMessage());
             session()->flash('whatsapp_error', 
-                'Gagal mengirim WhatsApp. Silakan kirim manual ke ' . $this->customer_phone);
+                '❌ Gagal kirim WA. Kirim manual ke ' . $this->customer_phone . 
+                ' → Resi: ' . $trackingNumber);
         }
     }
 

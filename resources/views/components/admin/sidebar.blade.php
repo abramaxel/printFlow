@@ -88,6 +88,10 @@
                 Kelola Ukuran
             </a>
         </div>
+            <a href="{{ route('admin.settings') }}" 
+                class="flex items-center px-4 py-2 text-sm font-medium rounded-lg {{ request()->routeIs('admin.settings') ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100' }}">
+                ⚙️ Pengaturan Toko
+            </a>
         @endif
 
         {{-- OWNER & CRM (Hanya Owner & Super Admin) --}}

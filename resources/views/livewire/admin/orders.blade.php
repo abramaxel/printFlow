@@ -77,6 +77,16 @@
                     </tr>
                 @endforelse
             </tbody>
+            {{-- ============ PAGINATION ============ --}}
+            <div class="mt-6 flex items-center justify-between">
+                <div class="text-sm text-gray-600">
+                    Menampilkan {{ $orders->firstItem() ?? 0 }} - {{ $orders->lastItem() ?? 0 }} 
+                    dari {{ $orders->total() }} pesanan
+                </div>
+                <div>
+                    {{ $orders->links() }}
+                </div>
+            </div>
         </table>
     </div>
 </div>

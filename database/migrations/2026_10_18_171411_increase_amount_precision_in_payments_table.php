@@ -6,23 +6,18 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('payments', function (Blueprint $table) {
-            //
+            // Ubah precision dari 12 menjadi 15
+            $table->decimal('amount', 15, 2)->change();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('payments', function (Blueprint $table) {
-            //
+            $table->decimal('amount', 12, 2)->change();
         });
     }
 };

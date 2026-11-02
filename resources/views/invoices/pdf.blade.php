@@ -14,6 +14,7 @@
         .badge-unpaid { background: #fef3c7; color: #b45309; }
         .badge-paid { background: #d1fae5; color: #047857; }
         .badge-partial { background: #dbeafe; color: #1d4ed8; }
+        .badge-cancelled { background: #fee2e2; color: #b91c1c; }
         .section-title { font-size: 8.5px; font-weight: bold; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 3px; }
         .box-table td { border: 1px solid #e5e7eb; padding: 6px 8px; vertical-align: top; }
         .stat-label { font-size: 8px; color: #6b7280; text-transform: uppercase; letter-spacing: .5px; }
@@ -25,9 +26,28 @@
         .totals-table td { padding: 2.5px 0; font-size: 10px; }
         .grand td { border-top: 2px solid #1f2937; font-size: 12px; font-weight: bold; color: #1d4ed8; padding-top: 5px; }
         .note { font-size: 8.5px; color: #6b7280; background: #f9fafb; border: 1px solid #e5e7eb; padding: 6px 8px; }
+        
+        /* Watermark untuk invoice cancelled */
+        .watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 80px;
+            color: rgba(220, 38, 38, 0.15);
+            font-weight: bold;
+            z-index: -1;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
+
+{{-- Watermark jika invoice dibatalkan --}}
+@if($invoice->isCancelled())
+    <div class="watermark">DIBATALKAN</div>
+@endif
+
 @php
     $order = $invoice->order;
     $bd = \App\Models\Invoice::costBreakdown($order);
@@ -37,18 +57,40 @@
     $totalQty = $order->items->sum('quantity');
     $totalArea = $order->items->sum('area_m2');
     $shipLabel = ['pickup' => 'Pickup di Toko (Tanpa Ongkir)', 'regular' => 'Kurir Reguler', 'instant' => 'Kurir Instant'][$order->shipping_method ?? 'pickup'] ?? 'Pickup di Toko';
-    $bankName = \App\Models\ShopSetting::where('key', 'bank_name')->first()?->value ?? 'BCA';
-    $bankAccount = \App\Models\ShopSetting::where('key', 'bank_account')->first()?->value ?? '-';
-    $bankHolder = \App\Models\ShopSetting::where('key', 'bank_holder')->first()?->value ?? '-';
-    $statusBadge = $invoice->status === 'paid' ? 'badge-paid' : ($paid > 0 ? 'badge-partial' : 'badge-unpaid');
-    $statusText = $invoice->status === 'paid' ? 'LUNAS' : ($paid > 0 ? 'DIBAYAR SEBAGIAN' : 'BELUM DIBAYAR');
+    
+    // ✅ AMBIL DATA DARI SHOPSETTING (DENGAN CACHE) — HANYA 1 QUERY
+    $shopName     = setting('shop_name', config('app.name', 'PrintOrder'));
+    $shopAddress  = setting('shop_address', 'Jl. Percetakan Digital No. 123, Jakarta');
+    $shopPhone    = setting('shop_phone', '-');
+    $shopEmail    = setting('shop_email', 'info@printorder.test');
+    $bankName     = setting('bank_name', 'BCA');
+    $bankAccount  = setting('bank_account', '-');
+    $bankHolder   = setting('bank_holder', '-');
+    $invoiceFooter = setting('invoice_footer', 'Terima kasih atas kepercayaan Anda menggunakan jasa cetak kami.');
+    
+    // Status badge (tambah cancelled)
+    if ($invoice->isCancelled()) {
+        $statusBadge = 'badge-cancelled';
+        $statusText = 'DIBATALKAN';
+    } elseif ($invoice->status === 'paid') {
+        $statusBadge = 'badge-paid';
+        $statusText = 'LUNAS';
+    } elseif ($paid > 0) {
+        $statusBadge = 'badge-partial';
+        $statusText = 'DIBAYAR SEBAGIAN';
+    } else {
+        $statusBadge = 'badge-unpaid';
+        $statusText = 'BELUM DIBAYAR';
+    }
 @endphp
 
+{{-- ============ HEADER DINAMIS ============ --}}
 <table style="margin-bottom: 14px;">
     <tr>
         <td style="width: 60%; vertical-align: top;">
-            <div class="brand">PrintOrder</div>
-            <div class="small muted">Jl. Percetakan Digital No. 123, Jakarta &bull; info@printorder.test</div>
+            <div class="brand">{{ $shopName }}</div>
+            <div class="small muted">{{ $shopAddress }}</div>
+            <div class="small muted">Telp: {{ $shopPhone }} &bull; Email: {{ $shopEmail }}</div>
         </td>
         <td style="width: 40%; vertical-align: top;" class="right">
             <div class="doc-title">INVOICE</div>
@@ -170,11 +212,13 @@
     <span class="bold">Catatan Perpajakan (PPN):</span> Seluruh harga pada invoice ini sudah termasuk Pajak Pertambahan Nilai (PPN) sesuai ketentuan peraturan perundang-undangan (UU PPN s.t.d.d. UU No. 7/2021 tentang HPP jo. PP No. 44/2022). Tidak ada pungutan pajak tambahan di luar Total Tagihan.
 </p>
 
+{{-- ============ FOOTER DINAMIS ============ --}}
 <table style="margin-top: 18px; border-top: 1px solid #e5e7eb;">
     <tr>
-        <td class="small muted" style="padding-top: 8px;">Terima kasih atas kepercayaan Anda menggunakan jasa cetak PrintOrder.</td>
-        <td class="small muted right" style="padding-top: 8px; width: 40%;">PRINTORDER OFFICIAL</td>
+        <td class="small muted" style="padding-top: 8px;">{{ $invoiceFooter }}</td>
+        <td class="small muted right" style="padding-top: 8px; width: 40%;">{{ strtoupper($shopName) }} OFFICIAL</td>
     </tr>
 </table>
+
 </body>
 </html>

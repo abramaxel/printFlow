@@ -111,7 +111,6 @@ class ProductionQueue extends Component
                     ->where('stock_reserved', '>=', $need)
                     ->decrement('stock_reserved', $need);
             }
-
             $old = $order->status;
             $order->update(['status' => 'processing']);
 
@@ -122,9 +121,16 @@ class ProductionQueue extends Component
                 'new_status' => 'processing',
                 'notes'      => 'Bahan dikonfirmasi & diambil dari gudang. Produksi dimulai (On Process).',
             ]);
+
+            // 🔔 KIRIM NOTIFIKASI KE OWNER & SUPER ADMIN
+            notify('owners', new \App\Notifications\ProductionStartedNotification(
+                invoiceNumber: $order->invoice_number,
+                orderId: $order->id,
+                customerName: $order->user->name
+            ));
         });
 
-        session()->flash('success', "Bahan {$order->invoice_number} ditarik. Status: ON PROCESS.");
+        session()->flash('success', "Bahan {$order->invoice_number} ditarik. Status: ON PROCESS. Notifikasi terkirim ke Owner.");
     }
 
     /** processing -> qc : cetak selesai, masuk meja quality control. */

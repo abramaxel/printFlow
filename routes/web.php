@@ -24,29 +24,17 @@ use App\Http\Controllers\InvoiceController;
 // ==========================================
 Route::get('/', function () {
     if (auth()->check()) {
-        // Daftar semua role internal (termasuk variasi penulisan)
-        $adminRoles = [
-            'owner', 'super_admin', 'admin', 'cs', 
-            'produksi', 'production',  // Support 2 variasi
-        ];
-        
-        $userRole = auth()->user()->role;
-        
-        // Debug: log role user untuk troubleshooting
-        logger("User role detected: '{$userRole}'");
-        
-        if (in_array($userRole, $adminRoles)) {
+        $adminRoles = ['owner', 'super_admin', 'admin', 'cs', 'produksi', 'production'];
+        if (in_array(auth()->user()->role, $adminRoles)) {
             return redirect()->route('admin.dashboard');
         }
-        
-        // Customer atau role lain
         return redirect()->route('customer.dashboard');
     }
     return redirect()->route('login');
 });
 
 // ==========================================
-// ROUTE LOGOUT
+// LOGOUT
 // ==========================================
 Route::post('/logout', function () {
     Auth::logout();
@@ -56,7 +44,7 @@ Route::post('/logout', function () {
 })->name('logout');
 
 // ==========================================
-// AUTH ROUTES (Hanya untuk Guest)
+// AUTH ROUTES (Guest Only)
 // ==========================================
 Route::middleware('guest')->group(function () {
     Route::get('/register', Register::class)->name('register');
@@ -64,14 +52,7 @@ Route::middleware('guest')->group(function () {
 });
 
 // ==========================================
-// ROUTE CUSTOMER (Butuh verified)
-// ==========================================
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/dashboard', CustomerDashboard::class)->name('customer.dashboard');
-});
-
-// ==========================================
-// EMAIL VERIFICATION ROUTES
+// EMAIL VERIFICATION
 // ==========================================
 Route::get('/email/verify', function () {
     return view('auth.verify-email');
@@ -88,11 +69,20 @@ Route::post('/email/verification-notification', function (Request $request) {
 })->middleware(['auth', 'throttle:6,1'])->name('verification.send');
 
 // ==========================================
-// ROUTE ADMIN & INTERNAL (TIDAK BUTUH verified!)
+// CUSTOMER DASHBOARD (Butuh verified)
 // ==========================================
-Route::middleware(['auth'])->group(function () {
-    // Dashboard Role-Aware
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', CustomerDashboard::class)->name('customer.dashboard');
+});
+
+// ==========================================
+// ADMIN & INTERNAL ROUTES
+// DIJAGA OLEH MIDDLEWARE 'internal' 
+// (Mencegah customer akses via URL manual)
+// ==========================================
+Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/admin/dashboard', Dashboard::class)->name('admin.dashboard');
+    Route::get('/admin/settings', \App\Livewire\Admin\ShopSettings::class)->name('admin.settings');
     
     // Master Data
     Route::get('/admin/services', Services::class)->name('admin.services');
@@ -102,18 +92,16 @@ Route::middleware(['auth'])->group(function () {
     // Production
     Route::get('/admin/production', ProductionQueue::class)->name('admin.production');
     Route::get('/admin/production-monitor', ProductionMonitor::class)->name('admin.production-monitor');
-    
+
     // Order Management
     Route::get('/admin/orders', Orders::class)->name('admin.orders');
     Route::get('/admin/orders/create', OrderCreate::class)->name('admin.orders.create');
     Route::get('/admin/orders/{order}', OrderShow::class)->name('admin.orders.show');
     Route::get('/admin/invoices/{invoice}/download', [InvoiceController::class, 'download'])->name('admin.invoices.download');
-
-    Route::get('/admin/active-orders', \App\Livewire\Admin\ActiveOrders::class)->name('admin.active-orders');
 });
 
 // ==========================================
-// MAGIC LINK ROUTES (PUBLIC / GUEST)
+// MAGIC LINK ROUTES (Public)
 // ==========================================
 Route::get('/bayar/{token}', [PaymentController::class, 'show'])->name('payment.show');
 Route::post('/bayar/{token}', [PaymentController::class, 'upload'])->name('payment.upload');

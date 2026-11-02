@@ -28,6 +28,12 @@
     @if (session()->has('whatsapp_error'))
         <div class="p-4 mb-6 text-sm text-red-800 rounded-lg bg-red-50 border border-red-200">{{ session('whatsapp_error') }}</div>
     @endif
+    
+    @if (session()->has('whatsapp_warning'))
+        <div class="p-4 mb-6 text-sm text-yellow-800 rounded-lg bg-yellow-50 border border-yellow-200">
+            {{ session('whatsapp_warning') }}
+        </div>
+    @endif
 
     {{-- ============ SECTION 1: INFO PELANGGAN + RINGKASAN TAGIHAN ============ --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
