@@ -84,7 +84,8 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/admin/dashboard', Dashboard::class)->name('admin.dashboard');
     Route::get('/admin/settings', \App\Livewire\Admin\ShopSettings::class)->name('admin.settings');
     
-    // Master Data
+    // Master 
+    Route::get('/admin/categories', \App\Livewire\Admin\Categories::class)->name('admin.categories');
     Route::get('/admin/services', Services::class)->name('admin.services');
     Route::get('/admin/materials', Materials::class)->name('admin.materials');
     Route::get('/admin/sizes', Sizes::class)->name('admin.sizes');

@@ -19,18 +19,16 @@ use Illuminate\Support\Str;
 #[Title('Buat Pesanan Baru')]
 class OrderCreate extends Component
 {
-    use WithFileUploads;
+     use WithFileUploads;
 
     /* ---------- Form state ---------- */
     public $user_id = '';
-    public $items = [];
+    public $items = []; 
     public $global_notes = '';
 
-    /* ---------- Shipping (per order) ---------- */
-    public $shipping_method = 'pickup';   // pickup | regular | instant
+    /* ---------- Shipping & Calculator ---------- */
+    public $shipping_method = 'pickup';
     public $shipping_address = '';
-
-    /* ---------- Price calculator ---------- */
     public $estimated_price = 0;
     public $total_duration_fee = 0;
     public $discount = 0;
@@ -39,13 +37,12 @@ class OrderCreate extends Component
 
     /* ---------- Dropdown data ---------- */
     public $customers = [];
-    public $services = [];
-    public $materials = [];
     public $sizes = [];
     public $durations = [];
 
     protected $rules = [
         'user_id'                => 'required|exists:users,id',
+        'items.*.category_id'    => 'required|exists:categories,id', // ✅ Validasi Kategori Per Item
         'items.*.service_id'     => 'required|exists:services,id',
         'items.*.material_id'    => 'required|exists:materials,id',
         'items.*.size_id'        => 'required|exists:sizes,id',
@@ -60,27 +57,35 @@ class OrderCreate extends Component
 
     public function mount(): void
     {
-        $this->customers = User::where('role', 'customer')->get()
-            ->map(fn($u) => ['value' => $u->id, 'label' => $u->name . ' (' . $u->email . ')'])->toArray();
-        $this->services = Service::where('is_active', true)->get()
-            ->map(fn($s) => ['value' => $s->id, 'label' => $s->name])->toArray();
-        $this->materials = Material::where('is_active', true)->get()
-            ->map(fn($m) => ['value' => $m->id, 'label' => $m->name])->toArray();
-        $this->sizes = Size::where('is_active', true)->get()
-            ->map(fn($sz) => ['value' => $sz->id, 'label' => $sz->name . ' (' . $sz->area_m2 . ' m2)'])->toArray();
-        $this->durations = ProcessingDuration::where('is_active', true)->orderBy('days', 'desc')->get()
-            ->map(function ($d) {
-                $m = rtrim(rtrim(number_format((float)$d->multiplier, 2, '.', ''), '0'), '.');
-                return ['value' => $d->id, 'label' => $d->name . ' (' . $d->days . ' hari) · ×' . $m];
-            })->toArray();
+        // Format customers menjadi ['id' => x, 'label' => y] agar cocok dengan Blade
+        $this->customers = User::where('role', 'customer')
+            ->orderBy('name')
+            ->get()
+            ->map(fn($u) => [
+                'id' => $u->id, 
+                'label' => "{$u->name} ({$u->email})"
+            ])
+            ->toArray();
 
-        $this->addItem();
+        // Load master data lain jika perlu
+        $this->sizes = Size::where('is_active', true)->get()->toArray();
+        $this->durations = ProcessingDuration::where('is_active', true)->orderBy('days')->get()->toArray();
+
+        // Inisialisasi item pertama
+        if (empty($this->items)) {
+            $this->addItem();
+        }
     }
 
+    /**
+     * Menambah baris item baru. Reset kategori agar admin memilih ulang.
+     */
     public function addItem(): void
     {
         $normal = ProcessingDuration::where('slug', 'normal')->first();
+        
         $this->items[] = [
+            'category_id'  => '',      // ✅ Wajib kosong saat tambah item baru
             'service_id'   => '',
             'material_id'  => '',
             'size_id'      => '',
@@ -89,6 +94,7 @@ class OrderCreate extends Component
             'notes'        => '',
             'design_files' => [],
         ];
+
         $this->calculateEstimatedPrice();
     }
 
@@ -123,11 +129,65 @@ class OrderCreate extends Component
         unset($files[$fileIndex]);
         $this->items[$index]['design_files'] = array_values($files); // re-index agar tidak bolong
     }
+    /**
+     * Helper: Ambil Layanan berdasarkan Kategori Item
+     */
+    public function getFilteredServices($index): array
+    {
+        $catId = $this->items[$index]['category_id'] ?? null;
+        if (!$catId) return [];
+        
+        return \App\Models\Service::where('category_id', $catId)
+            ->where('is_active', true)
+            ->get()
+            ->map(fn($s) => ['value' => $s->id, 'label' => $s->name])
+            ->toArray();
+    }
 
     /**
-     * HOOK GENERIK (pengganti updatedItems yang bermasalah di Livewire v3).
-     * $property selalu berbentuk "items.0.service_id" (path lengkap) -> parsing tidak ambigu.
-     * Signature defensif ($value = null) agar aman baik Livewire mengirim 1 maupun 2 argumen.
+     * Helper: Ambil Bahan berdasarkan Kategori Item
+     */
+    public function getFilteredMaterials($index): array
+    {
+        $catId = $this->items[$index]['category_id'] ?? null;
+        if (!$catId) return [];
+        
+        return \App\Models\Material::where('category_id', $catId)
+            ->where('is_active', true)
+            ->get()
+            ->map(fn($m) => ['value' => $m->id, 'label' => $m->name])
+            ->toArray();
+    }
+
+    /**
+     * Helper: Ambil Ukuran berdasarkan Kategori Item
+     */
+    public function getFilteredSizes($index): array
+    {
+        $catId = $this->items[$index]['category_id'] ?? null;
+        if (!$catId) return [];
+        
+        // Jika tabel sizes punya kolom category_id
+        return \App\Models\Size::where('category_id', $catId)
+            ->where('is_active', true)
+            ->get()
+            ->map(fn($sz) => ['value' => $sz->id, 'label' => "{$sz->name} ({$sz->width_cm}x{$sz->height_cm} cm)"])
+            ->toArray();
+            
+        // JIKA tabel sizes BELUM punya category_id, gunakan mapping manual sementara:
+        /*
+        return match((int)$catId) {
+            1 => \App\Models\Size::whereIn('name', ['Custom (per m²)', 'X-Banner Standard'])->get()->map(...)->toArray(),
+            2 => \App\Models\Size::whereIn('name', ['A4', 'A5', 'Kartu Nama'])->get()->map(...)->toArray(),
+            3 => \App\Models\Size::whereIn('name', ['Kaos Size S/M/L/XL', 'Tote Bag 35x40'])->get()->map(...)->toArray(),
+            default => [],
+        };
+        */
+    }
+
+    /**
+     * HOOK GENERIK (pola resmi Livewire v3 untuk field nested).
+     * $property selalu berbentuk path lengkap, misal: "items.0.category_id"
      */
     public function updated($property, $value = null): void
     {
@@ -139,41 +199,81 @@ class OrderCreate extends Component
             $this->resetErrorBag('shipping_address');
         }
 
-        // Hanya recalc bila field yang mempengaruhi harga berubah
+        // Hanya proses field di dalam array items
         if (!str_starts_with($property, 'items.')) {
             return;
         }
-        $parts = explode('.', $property);      // ["items","0","service_id"]
+
+        $parts = explode('.', $property);   // ["items", "0", "category_id"]
+        $index = (int) ($parts[1] ?? -1);
         $field = $parts[2] ?? null;
+
+        // ✅ CASCADE RESET: saat KATEGORI berubah, kosongkan pilihan di bawahnya
+        // agar admin tidak menyimpan kombinasi invalid (misal: Brosur + Bahan Kaos)
+        if ($field === 'category_id' && $index >= 0) {
+            $this->items[$index]['service_id']  = '';
+            $this->items[$index]['material_id'] = '';
+            $this->items[$index]['size_id']     = '';
+            $this->calculateEstimatedPrice();
+            return;
+        }
+
+        // Recalc harga hanya bila field yang mempengaruhi harga berubah
         if (in_array($field, ['service_id', 'material_id', 'size_id', 'quantity', 'duration_id'], true)) {
             $this->calculateEstimatedPrice();
         }
+    }
+
+    /**
+     * Nama file yang ramah tampil: buang hash temporary Livewire
+     * bila nama asli tidak terbaca (mis. "4ba638209ce7f96...").
+     */
+    public function cleanFileName($file): string
+    {
+        if (!is_object($file)) return 'File desain';
+
+        $name = method_exists($file, 'getClientOriginalName') ? $file->getClientOriginalName() : '';
+
+        // Jika masih berupa hash hex panjang, ekstrak nama asli yang embedded di path temp
+        if ($name === '' || preg_match('/^[a-f0-9]{24,}(\.[a-z0-9]+)?$/i', $name)) {
+            $base = method_exists($file, 'getFilename') ? basename($file->getFilename()) : '';
+            if (preg_match('/[a-f0-9]{20,}-(.+)$/i', $base, $m)) {
+                return str_replace('-', ' ', $m[1]);
+            }
+            return 'File desain (temporary)';
+        }
+
+        return $name;
     }
 
     public function calculateEstimatedPrice(): void
     {
         $this->estimated_price    = 0;
         $this->total_duration_fee = 0;
-
+        
         foreach ($this->items as $item) {
             if (empty($item['service_id']) || empty($item['material_id']) || empty($item['size_id'])) continue;
             $service  = Service::find($item['service_id']);
             $material = Material::find($item['material_id']);
             $size     = Size::find($item['size_id']);
             if (!$service || !$material || !$size) continue;
-
+            
             $base = (($service->price_per_m2 ?? 0) + ($material->price_per_m2 ?? 0))
-                  * ($size->area_m2 ?? 0) * (int)($item['quantity'] ?? 1);
+                * ($size->area_m2 ?? 0) * (int)($item['quantity'] ?? 1);
             $mult = $this->multiplierFor($item['duration_id'] ?? null);
             $fee  = round($base * ($mult - 1), 2);
-
             $this->estimated_price    += ($base + $fee);
             $this->total_duration_fee += $fee;
         }
-
+        
         $this->estimated_price    = round($this->estimated_price, 2);
         $this->total_duration_fee = round($this->total_duration_fee, 2);
-
+        
+        // ✅ RESET DEAL KE MASTER SAAT ITEM BERUBAH
+        $this->final_price_input   = $this->estimated_price;
+        $this->discount            = 0;
+        $this->discount_percentage = 0;
+        
         $this->refreshDiscountView();
     }
 

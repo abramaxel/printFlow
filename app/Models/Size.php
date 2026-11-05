@@ -17,6 +17,7 @@ class Size extends Model
         'area_m2',
         'price_adjustment',
         'is_active',
+        'category_id', // Relasi ke kategori
     ];
 
     protected $casts = [
@@ -24,4 +25,9 @@ class Size extends Model
         'price_adjustment' => 'decimal:2',
         'is_active' => 'boolean',
     ];
+
+    public function category()
+    {
+        return $this->belongsTo(Category::class);
+    }
 }

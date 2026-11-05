@@ -68,30 +68,36 @@
         {{-- MASTER DATA (Owner, Super Admin, Admin) --}}
         @if(in_array($userRole, ['owner', 'super_admin', 'admin']))
         <div class="pt-4 mt-4 border-t border-gray-200">
+            <a href="{{ route('admin.categories') }}" 
+                class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 {{ request()->routeIs('admin.categories') ? 'bg-blue-50 text-blue-700 font-semibold' : '' }}">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                Kelola Kategori
+            </a>
             <div class="px-4 text-xs font-semibold text-gray-500 uppercase mb-2">Master Data</div>
 
             <a href="{{ route('admin.services') }}" 
-               class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.services') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
+                class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.services') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                 Kelola Layanan
             </a>
 
             <a href="{{ route('admin.materials') }}" 
-               class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.materials') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
+                class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.materials') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
                 Kelola Bahan
             </a>
 
             <a href="{{ route('admin.sizes') }}" 
-               class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.sizes') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
+                 class="flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-gray-100 transition {{ request()->routeIs('admin.sizes') ? 'bg-green-50 text-green-700 font-semibold' : '' }}">
                 <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
                 Kelola Ukuran
             </a>
-        </div>
             <a href="{{ route('admin.settings') }}" 
                 class="flex items-center px-4 py-2 text-sm font-medium rounded-lg {{ request()->routeIs('admin.settings') ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100' }}">
                 ⚙️ Pengaturan Toko
             </a>
+        </div>
+            
         @endif
 
         {{-- OWNER & CRM (Hanya Owner & Super Admin) --}}
