@@ -2,40 +2,117 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Material extends Model
 {
-    use HasFactory;
 
     protected $fillable = [
-        'category_id',
-        'name',
-        'slug',
-        'description',
-        'price_per_m2',
-        'stock',
-        'stock_reserved',
-        'is_active',
+        'name', 'code', 'category_id', 'unit', 'price', 'stock', 'stock_reserved',
+        'threshold', 'minimum_stock', 'maximum_stock', 'lead_time_days',
+        'ordering_cost', 'holding_cost_rate', 'is_batch_tracked', 'shelf_life_days',
+        'is_active', 'description',
     ];
 
     protected $casts = [
-        'price_per_m2' => 'decimal:2',
+        'stock' => 'decimal:2',
+        'stock_reserved' => 'decimal:2',
+        'price' => 'decimal:2',
+        'minimum_stock' => 'integer',
+        'maximum_stock' => 'integer',
+        'lead_time_days' => 'integer',
+        'ordering_cost' => 'decimal:2',
+        'holding_cost_rate' => 'decimal:2',
+        'is_batch_tracked' => 'boolean',
+        'shelf_life_days' => 'integer',
         'is_active' => 'boolean',
     ];
 
-    /**
-     * Relasi ke Category
-     */
+    // === RELASI ===
     public function category()
     {
         return $this->belongsTo(Category::class);
     }
 
-    // Helper: Hitung stok yang benar-benar bisa dijual
-    public function getAvailableStockAttribute()
+    public function orderItems()
     {
-        return max(0, $this->stock - $this->stock_reserved);
+        return $this->hasMany(OrderItem::class);
+    }
+
+    public function movements()
+    {
+        return $this->hasMany(MaterialMovement::class);
+    }
+
+    public function batches()
+    {
+        return $this->hasMany(MaterialBatch::class)->where('status', 'active');
+    }
+
+    public function purchaseRequests()
+    {
+        return $this->hasMany(PurchaseRequest::class);
+    }
+
+    // === AKSESSOR ===
+    public function getAvailableStockAttribute(): float
+    {
+        return max(0, (float)$this->stock - (float)$this->stock_reserved);
+    }
+
+    public function getStockStatusAttribute(): string
+    {
+        $available = $this->available_stock;
+        if ($available <= 0) return 'out_of_stock';
+        if ($available <= ($this->minimum_stock ?? 0)) return 'critical';
+        if ($available <= ($this->threshold ?? 0)) return 'warning';
+        return 'safe';
+    }
+
+    // === METHOD MRP ===
+    public function calculateEoq(float $annualDemand): float
+    {
+        $holdingCost = (float)$this->price * ((float)($this->holding_cost_rate ?? 0.20));
+        if ($holdingCost <= 0) return $annualDemand;
+        return sqrt((2 * $annualDemand * ((float)($this->ordering_cost ?? 50000))) / $holdingCost);
+    }
+
+    public function calculateRop(): float
+    {
+        $avgDailyUsage = $this->getAverageDailyUsage(30);
+        $safetyStock = (float)($this->minimum_stock ?? 0);
+        return (((float)($this->lead_time_days ?? 3)) * $avgDailyUsage) + $safetyStock;
+    }
+
+    public function getAverageDailyUsage(int $days = 30): float
+    {
+        if ($days <= 0) return 0;
+        
+        $totalUsage = MaterialMovement::where('material_id', $this->id)
+            ->where('movement_type', 'out')
+            ->where('sub_type', 'production_issue')
+            ->where('movement_date', '>=', now()->subDays($days))
+            ->sum('quantity');
+            
+        return (float)$totalUsage / $days;
+    }
+
+    public function needsReorder(): bool
+    {
+        return $this->available_stock <= $this->calculateRop();
+    }
+
+    public function getPipelineDemand(): float
+    {
+        return (float)OrderItem::where('material_id', $this->id)
+            ->whereHas('order', function ($q) {
+                $q->whereIn('status', ['paid', 'processing']);
+            })
+            ->sum('area_m2');
+    }
+
+    public function getNetAvailableStock(): float
+    {
+        return $this->available_stock - $this->getPipelineDemand();
     }
 }

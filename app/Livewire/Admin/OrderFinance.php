@@ -219,6 +219,28 @@ class OrderFinance extends Component
             
             $this->order->update(['status' => 'paid']);
             $this->reserveStock($this->order);
+            
+            // === 🔥 TAMBAHAN MRP: Catat Audit Trail (Material Movement) untuk Pembayaran Tunai ===
+            foreach ($this->order->items as $item) {
+                if ($item->material_id && $item->area_m2 > 0) {
+                    \App\Models\MaterialMovement::create([
+                        'material_id'    => $item->material_id,
+                        'user_id'        => auth()->id(),
+                        'movement_type'  => 'reserve',
+                        'sub_type'       => 'order_reservation',
+                        'quantity'       => $item->area_m2,
+                        'unit'           => $item->material->unit ?? 'm2',
+                        'unit_cost'      => 0, // Reservasi tidak mengubah nilai finansial
+                        'total_cost'     => 0,
+                        'reference_type' => 'Order',
+                        'reference_id'   => $this->order->id,
+                        'notes'          => 'Reservasi stok untuk Invoice #' . $invoice->id . ' (Pembayaran Tunai)',
+                        'movement_date'  => now(),
+                    ]);
+                }
+            }
+            // === END TAMBAHAN MRP ===
+
             session()->flash('finance_success', 'Skema pembayaran diperbarui & Pembayaran tunai tercatat.');
         } else {
             $this->order->update(['status' => 'unpaid']);
@@ -234,7 +256,7 @@ class OrderFinance extends Component
     }
 
     /* ============ VERIFIKASI PEMBAYARAN ============ */
-    public function verifyPayment($paymentId)
+        public function verifyPayment($paymentId)
     {
         $payment = Payment::findOrFail($paymentId);
         $invoice = $payment->invoice;
@@ -288,6 +310,27 @@ class OrderFinance extends Component
         // Kunci stok hanya sekali saat uang pertama masuk
         if ($priorVerified === 0) {
             $this->reserveStock($invoice->order);
+            
+            // === 🔥 TAMBAHAN MRP: Catat Audit Trail (Material Movement) ===
+            foreach ($invoice->order->items as $item) {
+                if ($item->material_id && $item->area_m2 > 0) {
+                    \App\Models\MaterialMovement::create([
+                        'material_id'    => $item->material_id,
+                        'user_id'        => auth()->id(),
+                        'movement_type'  => 'reserve',
+                        'sub_type'       => 'order_reservation',
+                        'quantity'       => $item->area_m2,
+                        'unit'           => $item->material->unit ?? 'm2',
+                        'unit_cost'      => 0, // Reservasi tidak mengubah nilai finansial
+                        'total_cost'     => 0,
+                        'reference_type' => 'Order',
+                        'reference_id'   => $invoice->order->id,
+                        'notes'          => 'Reservasi stok untuk Invoice #' . $invoice->id,
+                        'movement_date'  => now(),
+                    ]);
+                }
+            }
+            // === END TAMBAHAN MRP ===
         }
 
         // TENTUKAN STATUS AKHIR
@@ -306,13 +349,16 @@ class OrderFinance extends Component
         $this->admin_notes = '';
     }
 
-    public function rejectPayment($paymentId)
+        public function rejectPayment($paymentId)
     {
-        $this->validate(['admin_notes' => 'required|string']);
+        $this->validate(['admin_notes' => 'required|string|max:500']);
         $payment = Payment::findOrFail($paymentId);
         $invoice = $payment->invoice;
 
-        $payment->update(['status' => 'rejected', 'admin_notes' => $this->admin_notes]);
+        $payment->update([
+            'status'      => 'rejected',
+            'admin_notes' => $this->admin_notes,
+        ]);
 
         $totalPaid = $invoice->payments()->where('status', 'verified')->sum('amount');
         $invoice->update([
@@ -320,8 +366,31 @@ class OrderFinance extends Component
             'status'     => $totalPaid >= $invoice->total_amount ? 'paid' : 'unpaid',
         ]);
 
+        // Bila tak ada lagi uang verified => lepas kunci stok & kembalikan order ke unpaid
         if ((float) $totalPaid <= 0) {
             $this->releaseStock($invoice->order);
+            
+            // === 🔥 TAMBAHAN MRP: Catat Audit Trail Release ===
+            foreach ($invoice->order->items as $item) {
+                if ($item->material_id && $item->area_m2 > 0) {
+                    \App\Models\MaterialMovement::create([
+                        'material_id'    => $item->material_id,
+                        'user_id'        => auth()->id(),
+                        'movement_type'  => 'release',
+                        'sub_type'       => 'rejection_release',
+                        'quantity'       => $item->area_m2,
+                        'unit'           => $item->material->unit ?? 'm2',
+                        'unit_cost'      => 0,
+                        'total_cost'     => 0,
+                        'reference_type' => 'Order',
+                        'reference_id'   => $invoice->order->id,
+                        'notes'          => 'Release stok karena pembayaran ditolak.',
+                        'movement_date'  => now(),
+                    ]);
+                }
+            }
+            // === END TAMBAHAN MRP ===
+
             $invoice->order->update(['status' => 'unpaid']);
         }
 

@@ -3,8 +3,12 @@
 namespace App\Livewire\Admin;
 
 use Livewire\Component;
+use Livewire\Attributes\Layout; 
 use Livewire\WithPagination;
 use App\Models\Category;
+
+#[Layout('components.layouts.admin')] // <-- Pastikan path ini benar & sesuai struktur folder
+#[Title('Kelola Kategori')]
 
 class Categories extends Component
 {

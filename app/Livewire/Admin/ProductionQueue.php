@@ -8,6 +8,7 @@ use Livewire\Attributes\Title;
 use App\Models\Order;
 use App\Models\OrderHistory;
 use App\Models\Material;
+use App\Services\MrpEngine; 
 use Illuminate\Support\Facades\DB;
 
 #[Layout('components.layouts.admin')]
@@ -83,7 +84,7 @@ class ProductionQueue extends Component
     }
 
     /** paid -> processing : bahan fisik diambil dari gudang, stok permanen berkurang. */
-    public function confirmMaterialTakeout($orderId)
+        public function confirmMaterialTakeout($orderId)
     {
         $order = Order::with('items.material')->findOrFail($orderId);
 
@@ -104,13 +105,34 @@ class ProductionQueue extends Component
         DB::transaction(function () use ($order) {
             foreach ($order->items as $item) {
                 $need = (float) $item->area_m2;
-                // Potong stok fisik (kenyataan lapangan)
+                $material = $item->material;
+
+                // 1. Potong stok fisik (kenyataan lapangan)
                 Material::where('id', $item->material_id)->decrement('stock', $need);
-                // Lepas kunci reserve SEAMAN: jangan sampai negatif walau reserve sumbernya miring
+                
+                // 2. Lepas kunci reserve SEAMAN: jangan sampai negatif walau reserve sumbernya miring
                 Material::where('id', $item->material_id)
                     ->where('stock_reserved', '>=', $need)
                     ->decrement('stock_reserved', $need);
+
+                // === 🔥 TAMBAHAN MRP: Catat Audit Trail (Material Movement) ===
+                \App\Models\MaterialMovement::create([
+                    'material_id'    => $item->material_id,
+                    'user_id'        => auth()->id(),
+                    'movement_type'  => 'out',
+                    'sub_type'       => 'production_issue',
+                    'quantity'       => $need,
+                    'unit'           => $material->unit ?? 'm2',
+                    'unit_cost'      => $material->price ?? 0,
+                    'total_cost'     => $need * ($material->price ?? 0),
+                    'reference_type' => 'Order',
+                    'reference_id'   => $order->id,
+                    'notes'          => 'Pengambilan bahan untuk produksi (On Process).',
+                    'movement_date'  => now(),
+                ]);
+                // === END TAMBAHAN MRP ===
             }
+            
             $old = $order->status;
             $order->update(['status' => 'processing']);
 
