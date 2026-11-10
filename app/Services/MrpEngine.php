@@ -353,9 +353,8 @@ class MrpEngine
         ]);
     }
 
-    /**
+        /**
      * Reservasi stok untuk SELURUH order berdasarkan ledakan BOM.
-     * Standar Internasional: Group by material untuk menghindari duplikasi reservasi.
      */
     public function reserveOrderStock(Order $order): void
     {
@@ -366,10 +365,8 @@ class MrpEngine
                 $material = Material::find($req['material_id']);
                 if (!$material) continue;
 
-                // 1. Kunci stok
                 $material->increment('stock_reserved', $req['total_needed']);
 
-                // 2. Catat Audit Trail
                 MaterialMovement::create([
                     'material_id'    => $material->id,
                     'user_id'        => auth()->id(),
@@ -381,7 +378,7 @@ class MrpEngine
                     'total_cost'     => 0,
                     'reference_type' => 'Order',
                     'reference_id'   => $order->id,
-                    'notes'          => "Reservasi BOM untuk Order #{$order->id}. Detail: " . json_encode(array_column($req['details'], 'material_name')),
+                    'notes'          => "Reservasi BOM untuk Order #{$order->id}.",
                     'movement_date'  => now(),
                 ]);
             }

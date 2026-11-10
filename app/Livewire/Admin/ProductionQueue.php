@@ -177,7 +177,7 @@ class ProductionQueue extends Component
             notify('owners', new \App\Notifications\ProductionStartedNotification(
                 invoiceNumber: $order->invoice_number,
                 orderId: $order->id,
-                customerName: $order->user->name
+                customerName: $order->user->name ?? 'Customer'
             ));
         });
 

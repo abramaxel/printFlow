@@ -11,7 +11,8 @@ class DeadlineApproachingNotification extends Notification
 
     public function __construct(
         public string $invoiceNumber,
-        public string $deadlineDate,
+        public string $serviceName,
+        public string $timeRemaining, // Contoh: "2 jam lagi" atau "1 hari lagi"
         public int $orderId
     ) {}
 
@@ -23,12 +24,15 @@ class DeadlineApproachingNotification extends Notification
     public function toArray($notifiable): array
     {
         return [
-            'type' => 'deadline_approaching',
-            'icon' => '⏰',
-            'title' => 'Deadline Mendekat!',
-            'message' => "Order {$this->invoiceNumber} harus selesai pada {$this->deadlineDate}.",
-            'order_id' => $this->orderId,
-            'url' => route('admin.orders.show', $this->orderId),
+            'title'   => '⏰ Deadline Produksi Mendekat!',
+            'message' => "Order {$this->invoiceNumber} ({$this->serviceName}) harus selesai dalam {$this->timeRemaining}. Prioritaskan antrian ini.",
+            'url'     => route('admin.production'), // Deep link ke Antrian Produksi
+            'icon'    => '⚠️',
+            'type'    => 'danger', // Urgent / Merah
+            'data'    => [
+                'invoice_number' => $this->invoiceNumber,
+                'time_remaining' => $this->timeRemaining,
+            ]
         ];
     }
 }

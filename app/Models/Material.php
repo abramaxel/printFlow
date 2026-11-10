@@ -43,7 +43,7 @@ class Material extends Model
         return 'safe';
     }
 
-    // === METHOD MRP DOMAIN ===
+    // === METHOD DOMAIN MRP ===
     public function calculateEoq(float $annualDemand): float
     {
         $holdingCost = (float) $this->price * (float) ($this->holding_cost_rate ?? 0.20);

@@ -121,27 +121,46 @@ class Dashboard extends Component
      *   status / net_available / minimum_stock / pipeline / unit / name / id
      * Efisiensi: 2 query, TANPA N+1, read-only (tidak menulis PR).
      */
-    private function criticalStockAlerts(): array
+        private function criticalStockAlerts(): array
     {
         $pipelineDemand = OrderItem::whereIn('order_id',
             Order::whereIn('status', ['paid', 'processing'])->pluck('id')
-        )->selectRaw('material_id, SUM(area_m2) AS total')->groupBy('material_id')->pluck('total', 'material_id');
+        )
+        ->selectRaw('material_id, SUM(area_m2) AS total')
+        ->groupBy('material_id')
+        ->pluck('total', 'material_id');
 
-        return Material::with('category')->where('is_active', true)->get()
+        return Material::with('category')
+            ->where('is_active', true)
+            ->get()
             ->map(function ($m) use ($pipelineDemand) {
                 $available = (float) $m->stock - (float) ($m->stock_reserved ?? 0);
                 $net       = $available - (float) ($pipelineDemand[$m->id] ?? 0);
                 $minimum   = (float) ($m->minimum_stock ?? 0);
-                $status    = $net <= 0 ? 'out_of_stock' : ($net <= $minimum ? 'critical' : 'safe');
+                
+                $status = match (true) {
+                    $net <= 0        => 'out_of_stock',
+                    $net <= $minimum => 'critical',
+                    default          => 'safe',
+                };
+
                 return [
-                    'id' => $m->id, 'name' => $m->name, 'unit' => $m->unit ?? 'm²',
-                    'stock' => (float) $m->stock, 'reserved' => (float) ($m->stock_reserved ?? 0),
-                    'available' => $available, 'pipeline' => (float) ($pipelineDemand[$m->id] ?? 0),
-                    'net_available' => $net, 'minimum_stock' => $minimum, 'status' => $status, // ← key cocok dgn blade
+                    'id'            => $m->id,
+                    'name'          => $m->name,
+                    'unit'          => $m->unit ?? 'm²',
+                    'stock'         => (float) $m->stock,
+                    'reserved'      => (float) ($m->stock_reserved ?? 0),
+                    'available'     => $available,
+                    'pipeline'      => (float) ($pipelineDemand[$m->id] ?? 0),
+                    'net_available' => $net,          // ← Key yang diharapkan Blade
+                    'minimum_stock' => $minimum,      // ← Key yang diharapkan Blade
+                    'status'        => $status,       // ← Key yang diharapkan Blade
                 ];
             })
-            ->filter(fn ($r) => $r['status'] !== 'safe')
-            ->sortBy(fn ($r) => $r['net_available'])
-            ->take(8)->values()->all();
+            ->filter(fn ($row) => $row['status'] !== 'safe')
+            ->sortBy(fn ($row) => $row['net_available'])
+            ->take(8)
+            ->values()
+            ->all();
     }
 }

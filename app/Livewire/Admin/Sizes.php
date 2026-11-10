@@ -1,5 +1,7 @@
 <?php
+
 namespace App\Livewire\Admin;
+
 use Livewire\Component;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
@@ -10,14 +12,25 @@ use Illuminate\Support\Str;
 #[Title('Manajemen Ukuran')]
 class Sizes extends Component
 {
-    public $search = ''; public $showForm = false; public $editingId = null;
-    public $name = ''; public $slug = ''; public $width_cm = 0; public $height_cm = 0;
-    public $area_m2 = 0; public $price_adjustment = 0; public $is_active = true;
+    public $search = '';
+    public $showForm = false;
+    public $editingId = null;
+
+    public $name = '';
+    public $slug = '';
+    public $width_cm = 0;
+    public $height_cm = 0;
+    public $area_m2 = 0;
+    public $price_adjustment = 0;
+    public $is_active = true;
 
     protected $rules = [
-        'name' => 'required|min:2|max:100', 'area_m2' => 'required|numeric|min:0',
-        'width_cm' => 'nullable|numeric|min:0', 'height_cm' => 'nullable|numeric|min:0',
-        'price_adjustment' => 'nullable|numeric', 'is_active' => 'boolean',
+        'name' => 'required|min:2|max:100',
+        'area_m2' => 'required|numeric|min:0',
+        'width_cm' => 'nullable|numeric|min:0',
+        'height_cm' => 'nullable|numeric|min:0',
+        'price_adjustment' => 'nullable|numeric',
+        'is_active' => 'boolean',
     ];
 
     public function render()
@@ -26,43 +39,67 @@ class Sizes extends Component
         return view('livewire.admin.sizes', compact('sizes'));
     }
 
-    public function updatedName($v) { if (!$this->editingId && empty($this->slug)) $this->slug = Str::slug($v); }
+    public function updatedName($value)
+    {
+        if (!$this->editingId && empty($this->slug)) {
+            $this->slug = Str::slug($value);
+        }
+    }
 
     public function openForm($id = null)
     {
         $this->resetValidation();
         if ($id) {
-            $s = Size::findOrFail($id);
-            $this->editingId = $s->id; $this->name = $s->name; $this->slug = $s->slug;
-            $this->width_cm = $s->width_cm ?? 0; $this->height_cm = $s->height_cm ?? 0;
-            $this->area_m2 = $s->area_m2; $this->price_adjustment = $s->price_adjustment ?? 0;
-            $this->is_active = (bool) $s->is_active;
-        } else { $this->resetForm(); }
+            $size = Size::findOrFail($id);
+            $this->editingId = $size->id;
+            $this->name = $size->name;
+            $this->slug = $size->slug;
+            $this->width_cm = $size->width_cm ?? 0;
+            $this->height_cm = $size->height_cm ?? 0;
+            $this->area_m2 = $size->area_m2;
+            $this->price_adjustment = $size->price_adjustment ?? 0;
+            $this->is_active = (bool) $size->is_active;
+        } else {
+            $this->resetForm();
+        }
         $this->showForm = true;
     }
 
     public function save()
     {
         $this->validate();
-        $slug = $this->slug ?: Str::slug($this->name);
-        if (Size::where('slug', $slug)->where('id', '!=', $this->editingId)->exists()) {
-            $b = $slug; $i = 1;
-            while (Size::where('slug', $slug)->where('id', '!=', $this->editingId)->exists()) $slug = $b . '-' . $i++;
+        $finalSlug = $this->slug ?: Str::slug($this->name);
+        
+        if (Size::where('slug', $finalSlug)->where('id', '!=', $this->editingId)->exists()) {
+            $base = $finalSlug; $i = 1;
+            while (Size::where('slug', $finalSlug)->where('id', '!=', $this->editingId)->exists()) {
+                $finalSlug = $base . '-' . $i++;
+            }
         }
+
         Size::updateOrCreate(['id' => $this->editingId], [
-            'name' => $this->name, 'slug' => $slug, 'width_cm' => $this->width_cm,
-            'height_cm' => $this->height_cm, 'area_m2' => $this->area_m2,
-            'price_adjustment' => $this->price_adjustment, 'is_active' => $this->is_active,
+            'name' => $this->name, 'slug' => $finalSlug,
+            'width_cm' => $this->width_cm, 'height_cm' => $this->height_cm,
+            'area_m2' => $this->area_m2, 'price_adjustment' => $this->price_adjustment,
+            'is_active' => $this->is_active,
         ]);
+
         session()->flash('success', $this->editingId ? 'Ukuran diperbarui!' : 'Ukuran baru ditambahkan!');
-        $this->resetForm(); $this->showForm = false;
+        $this->resetForm();
+        $this->showForm = false;
     }
 
-    public function delete($id) { Size::findOrFail($id)->delete(); session()->flash('success', 'Ukuran dihapus.'); }
+    public function delete($id)
+    {
+        Size::findOrFail($id)->delete();
+        session()->flash('success', 'Ukuran dihapus.');
+    }
 
     private function resetForm()
     {
-        $this->editingId = null; $this->name = $this->slug = '';
-        $this->width_cm = $this->height_cm = $this->area_m2 = $this->price_adjustment = 0; $this->is_active = true;
+        $this->editingId = null;
+        $this->name = $this->slug = '';
+        $this->width_cm = $this->height_cm = $this->area_m2 = $this->price_adjustment = 0;
+        $this->is_active = true;
     }
 }

@@ -11,23 +11,28 @@ Artisan::command('inspire', function () {
 
 // === MRP SCHEDULER ===
 
-// Cek Re-Order Point setiap hari jam 6 pagi
+// Cek Re-Order Point & Kirim Notifikasi setiap hari jam 6 pagi
 Schedule::call(function () {
     $mrp = app(MrpEngine::class);
     $results = $mrp->runFullMrp();
     
-    $critical = $results->where('urgency', 'critical')->count();
+    $criticalCount = 0;
     
-    if ($critical > 0) {
-        \Log::info("MRP Daily Check: {$critical} material butuh pembelian segera.");
-        
-        // Opsional: Kirim notifikasi ke owner
-        notify([
-            'type' => 'inventory',
-            'title' => '⚠️ Peringatan Stok Kritis',
-            'message' => "{$critical} material di bawah batas minimum. Cek dashboard MRP.",
-            'url' => route('admin.materials'), // sesuaikan dengan route Anda
-        ]);
+    // Loop hasil MRP, jika ada yang 'critical', kirim notifikasi
+    foreach ($results as $res) {
+        if (($res['urgency'] ?? '') === 'critical') {
+            notify('owners', new \App\Notifications\StockCriticalNotification(
+                materialName: $res['material_name'],
+                currentStock: $res['net_available'],
+                minimumStock: $res['minimum_stock'],
+                materialId: $res['material_id']
+            ));
+            $criticalCount++;
+        }
+    }
+
+    if ($criticalCount > 0) {
+        \Log::info("MRP Scheduler: {$criticalCount} notifikasi stok kritis terkirim ke Owner.");
     }
 })->dailyAt('06:00')->name('mrp-daily-check')->withoutOverlapping();
 
@@ -39,15 +44,6 @@ Schedule::call(function () {
     
     foreach ($expiredBatches as $batch) {
         $batch->update(['status' => 'expired']);
-        
         \Log::warning("Batch expired: {$batch->batch_number} ({$batch->material->name})");
-        
-        // Notifikasi ke owner
-        notify([
-            'type' => 'inventory',
-            'title' => '🗑️ Batch Kadaluarsa',
-            'message' => "Batch {$batch->batch_number} ({$batch->material->name}) sudah kadaluarsa.",
-            'url' => route('admin.materials'),
-        ]);
     }
 })->dailyAt('07:00')->name('batch-expiry-check');

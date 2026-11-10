@@ -23,12 +23,15 @@ class ProductionStartedNotification extends Notification
     public function toArray($notifiable): array
     {
         return [
-            'type' => 'production_started',
-            'icon' => '🏭',
-            'title' => 'Produksi Dimulai',
-            'message' => "Order {$this->invoiceNumber} ({$this->customerName}) telah masuk tahap produksi. Bahan sudah diambil dari gudang.",
-            'order_id' => $this->orderId,
-            'url' => route('admin.orders.show', $this->orderId),
+            'title'   => '🏭 Produksi Dimulai',
+            'message' => "Order {$this->invoiceNumber} untuk {$this->customerName} sedang dalam tahap produksi (On Process).",
+            'url'     => route('admin.orders.show', $this->orderId),
+            'icon'    => '⚙️',
+            'type'    => 'info', // Informasi / Biru
+            'data'    => [
+                'invoice_number' => $this->invoiceNumber,
+                'customer_name'  => $this->customerName,
+            ]
         ];
     }
 }

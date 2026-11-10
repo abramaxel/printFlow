@@ -6,6 +6,8 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
+use App\Exports\MaterialMovementExport;
+use Maatwebsite\Excel\Facades\Excel;
 use App\Models\Material;
 use App\Models\MaterialMovement;
 use App\Models\User;
@@ -67,5 +69,19 @@ class MaterialAuditTrail extends Component
     {
         $this->reset(['materialId', 'movementType', 'dateFrom', 'dateTo', 'search']);
         $this->resetPage();
+    }
+
+    public function exportExcel()
+    {
+        $filters = [
+            'material_id' => $this->materialId,
+            'movement_type' => $this->movementType,
+            'date_from' => $this->dateFrom,
+            'date_to' => $this->dateTo,
+        ];
+
+        $filename = 'Audit_Trail_Stok_' . now()->format('Ymd_His') . '.xlsx';
+
+        return Excel::download(new MaterialMovementExport($filters), $filename);
     }
 }

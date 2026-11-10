@@ -260,42 +260,37 @@ class OrderFinance extends Component
     {
         $payment = Payment::findOrFail($paymentId);
         $invoice = $payment->invoice;
+        $order = $invoice->order;
 
-        // Cek apakah ini pembayaran pertama yang diverifikasi (untuk kunci stok)
+        // 1. Cek apakah ini pembayaran pertama (untuk kunci stok)
         $priorVerified = $invoice->payments()
             ->where('status', 'verified')
             ->where('id', '!=', $payment->id)
             ->count();
 
-        // Update status payment
+        // 2. Update status payment
         $payment->update([
             'status'      => 'verified',
             'admin_notes' => $this->admin_notes,
             'verified_at' => now(),
         ]);
 
-        // Hitung ulang total yang sudah dibayar
+        // 3. Hitung ulang total & update schedule
         $totalPaid = $invoice->payments()->where('status', 'verified')->sum('amount');
         $remaining = $invoice->total_amount - $totalPaid;
-
         $invoice->update(['total_paid' => $totalPaid]);
 
-        // SMART LOGIC: Update Payment Schedule
         if ($invoice->payment_schedule) {
             $schedule = $invoice->payment_schedule;
             $paymentAmount = (float) $payment->amount;
             
             foreach ($schedule as $i => $row) {
                 if ($row['status'] === 'pending') {
-                    // Jika nominal pembayaran cocok dengan jadwal, tandai lunas
                     if (abs((float) $row['amount'] - $paymentAmount) < 1) {
                         $schedule[$i]['status'] = 'verified';
                         break; 
-                    }
-                    // EARLY PAYOFF DETECTION: Jika customer bayar lebih besar dari jadwal (misal langsung lunasi sisa)
-                    elseif ($paymentAmount >= (float) $row['amount'] && $remaining <= 0) {
+                    } elseif ($paymentAmount >= (float) $row['amount'] && $remaining <= 0) {
                         $schedule[$i]['status'] = 'verified';
-                        // Tandai semua sisa jadwal berikutnya sebagai verified juga karena sudah lunas
                         for ($j = $i + 1; $j < count($schedule); $j++) {
                             $schedule[$j]['status'] = 'verified';
                             $schedule[$j]['description'] .= ' (Dilunasi Dipercepat)';
@@ -307,12 +302,11 @@ class OrderFinance extends Component
             $invoice->update(['payment_schedule' => $schedule]);
         }
 
-        // Kunci stok hanya sekali saat uang pertama masuk
+        // 4. Kunci stok & Audit Trail MRP (Hanya sekali di pembayaran pertama)
         if ($priorVerified === 0) {
-            $this->reserveStock($invoice->order);
+            $this->reserveStock($order);
             
-            // === 🔥 TAMBAHAN MRP: Catat Audit Trail (Material Movement) ===
-            foreach ($invoice->order->items as $item) {
+            foreach ($order->items as $item) {
                 if ($item->material_id && $item->area_m2 > 0) {
                     \App\Models\MaterialMovement::create([
                         'material_id'    => $item->material_id,
@@ -321,30 +315,35 @@ class OrderFinance extends Component
                         'sub_type'       => 'order_reservation',
                         'quantity'       => $item->area_m2,
                         'unit'           => $item->material->unit ?? 'm2',
-                        'unit_cost'      => 0, // Reservasi tidak mengubah nilai finansial
+                        'unit_cost'      => 0,
                         'total_cost'     => 0,
                         'reference_type' => 'Order',
-                        'reference_id'   => $invoice->order->id,
-                        'notes'          => 'Reservasi stok untuk Invoice #' . $invoice->id,
+                        'reference_id'   => $order->id,
+                        'notes'          => 'Reservasi stok Invoice #' . $invoice->id,
                         'movement_date'  => now(),
                     ]);
                 }
             }
-            // === END TAMBAHAN MRP ===
         }
 
-        // TENTUKAN STATUS AKHIR
+        // 5. Tentukan Status Akhir
         if ($remaining <= 0) {
-            // LUNAS SEPENUHNYA (Termasuk jika customer langsung melunasi sisa cicilan)
             $invoice->update(['status' => 'paid', 'paid_at' => now()]);
-            $invoice->order->update(['status' => 'paid']);
-            session()->flash('finance_success', '✅ Pembayaran LUNAS diverifikasi! (Termasuk pelunasan dipercepat). SPK terbit, pesanan masuk antrean produksi.');
+            $order->update(['status' => 'paid']);
+            session()->flash('finance_success', '✅ Pembayaran LUNAS diverifikasi! SPK terbit.');
         } else {
-            // MASIH ADA SISA
             $invoice->update(['status' => 'unpaid']);
-            $invoice->order->update(['status' => 'paid']); // DP aman => SPK terbit
-            session()->flash('finance_success', '✅ Cicilan/DP diverifikasi! Sisa tagihan: Rp ' . number_format($remaining, 0, ',', '.'));
+            $order->update(['status' => 'paid']);
+            session()->flash('finance_success', '✅ Cicilan/DP diverifikasi! Sisa: Rp ' . number_format($remaining, 0, ',', '.'));
         }
+
+        // 6. 🔥 TRIGGER NOTIFIKASI (Baru)
+        notify('owners', new \App\Notifications\PaymentVerifiedNotification(
+            invoiceNumber: $invoice->invoice_number,
+            customerName: $order->user->name ?? 'Customer',
+            amount: (float) $payment->amount,
+            orderId: $order->id
+        ));
 
         $this->admin_notes = '';
     }

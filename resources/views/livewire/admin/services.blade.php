@@ -2,7 +2,7 @@
     <div class="flex justify-between items-center mb-6">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">📋 Kelola Layanan</h1>
-            <p class="text-sm text-gray-500 mt-1">Daftar layanan cetak dan harga dasar per m²</p>
+            <p class="text-sm text-gray-500 mt-1">Daftar layanan cetak dan harga dasar</p>
         </div>
         <button wire:click="openForm" class="px-5 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-sm">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
@@ -15,8 +15,7 @@
     @endif
 
     <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
-        <input type="text" wire:model.live.debounce.300ms="search" placeholder="🔍 Cari nama layanan..."
-               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+        <input type="text" wire:model.live.debounce.300ms="search" placeholder="🔍 Cari nama layanan..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
     </div>
 
     <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -26,7 +25,7 @@
                     <tr>
                         <th class="px-4 py-3 text-left font-semibold text-gray-600">Nama Layanan</th>
                         <th class="px-4 py-3 text-left font-semibold text-gray-600">Slug</th>
-                        <th class="px-4 py-3 text-right font-semibold text-gray-600">Harga /m²</th>
+                        <th class="px-4 py-3 text-right font-semibold text-gray-600">Harga (/m²)</th>
                         <th class="px-4 py-3 text-center font-semibold text-gray-600">Status</th>
                         <th class="px-4 py-3 text-center font-semibold text-gray-600">Aksi</th>
                     </tr>
@@ -34,14 +33,13 @@
                 <tbody class="divide-y divide-gray-100">
                     @forelse($services as $service)
                         <tr class="hover:bg-gray-50 transition">
-                            <td class="px-4 py-3">
-                                <div class="font-medium text-gray-900">{{ $service->name }}</div>
-                                @if($service->description)<div class="text-xs text-gray-500 truncate max-w-md">{{ Str::limit($service->description, 60) }}</div>@endif
-                            </td>
+                            <td class="px-4 py-3 font-medium text-gray-900">{{ $service->name }}</td>
                             <td class="px-4 py-3 text-gray-600 font-mono text-xs">{{ $service->slug }}</td>
                             <td class="px-4 py-3 text-right font-medium text-gray-900">Rp {{ number_format($service->price_per_m2 ?? 0, 0, ',', '.') }}</td>
                             <td class="px-4 py-3 text-center">
-                                <span class="px-2.5 py-1 text-xs font-bold rounded-full {{ $service->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600' }}">{{ $service->is_active ? 'AKTIF' : 'NONAKTIF' }}</span>
+                                <span class="px-2.5 py-1 text-xs font-bold rounded-full {{ $service->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600' }}">
+                                    {{ $service->is_active ? 'AKTIF' : 'NONAKTIF' }}
+                                </span>
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex items-center justify-center gap-2">
@@ -58,6 +56,7 @@
         </div>
     </div>
 
+    {{-- MODAL POPUP CARD (Blur Background Consistent) --}}
     @if($showForm)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg relative animate-fade-in-up">
