@@ -21,6 +21,7 @@ class ProductionQueue extends Component
     public $incidentType = 'machine_breakdown';
     public $incidentDesc = '';
     public $incidentImpact = 1;
+    public $wasteQty = []; // [order_item_id => qty bahan rusak]
 
     /** Batas aman: order dianggap "siap" bila semua item tersedia stoknya. */
     private function itemAvailable($item): bool
@@ -84,7 +85,7 @@ class ProductionQueue extends Component
     }
 
     /** paid -> processing : bahan fisik diambil dari gudang, stok permanen berkurang. */
-        public function confirmMaterialTakeout($orderId)
+    public function confirmMaterialTakeout($orderId)
     {
         $order = Order::with('items.material')->findOrFail($orderId);
 
@@ -93,46 +94,75 @@ class ProductionQueue extends Component
             return;
         }
 
-        // Guard stok: semua item harus cukup (stock - reserved >= area_m2)
+        // Guard stok: semua item harus cukup (termasuk waste)
         foreach ($order->items as $item) {
             if (!$this->itemAvailable($item)) {
                 $m = $item->material->name ?? '?';
                 session()->flash('error', "Stok tidak cukup untuk '{$m}'. Tidak bisa konfirmasi.");
                 return;
             }
+            // Guard tambahan: ketersediaan harus menutupi produksi + waste
+            $waste = (float)($this->wasteQty[$item->id] ?? 0);
+            if ($waste > 0) {
+                $avail = (float)$item->material->stock - (float)($item->material->stock_reserved ?? 0);
+                if ($avail < ((float)$item->area_m2 + $waste)) {
+                    session()->flash('error', "Stok '{$item->material->name}' tidak cukup untuk produksi + waste ({$waste}).");
+                    return;
+                }
+            }
         }
 
         DB::transaction(function () use ($order) {
             foreach ($order->items as $item) {
-                $need = (float) $item->area_m2;
+                $need     = (float)$item->area_m2;
+                $waste    = (float)($this->wasteQty[$item->id] ?? 0);
                 $material = $item->material;
+                $unitPrice = (float)($material->price ?? 0);
+                $totalOut = $need + $waste;
 
-                // 1. Potong stok fisik (kenyataan lapangan)
-                Material::where('id', $item->material_id)->decrement('stock', $need);
-                
-                // 2. Lepas kunci reserve SEAMAN: jangan sampai negatif walau reserve sumbernya miring
+                // 1. Potong stok fisik (produksi + waste)
+                Material::where('id', $item->material_id)->decrement('stock', $totalOut);
+
+                // 2. Lepas kunci reserve (hanya qty produksi)
                 Material::where('id', $item->material_id)
                     ->where('stock_reserved', '>=', $need)
                     ->decrement('stock_reserved', $need);
 
-                // === 🔥 TAMBAHAN MRP: Catat Audit Trail (Material Movement) ===
-                \App\Models\MaterialMovement::create([
+                // 3. Movement produksi
+                MaterialMovement::create([
                     'material_id'    => $item->material_id,
                     'user_id'        => auth()->id(),
                     'movement_type'  => 'out',
                     'sub_type'       => 'production_issue',
                     'quantity'       => $need,
                     'unit'           => $material->unit ?? 'm2',
-                    'unit_cost'      => $material->price ?? 0,
-                    'total_cost'     => $need * ($material->price ?? 0),
+                    'unit_cost'      => $unitPrice,
+                    'total_cost'     => $need * $unitPrice,
                     'reference_type' => 'Order',
                     'reference_id'   => $order->id,
-                    'notes'          => 'Pengambilan bahan untuk produksi (On Process).',
+                    'notes'          => "Pengambilan bahan untuk produksi (Order {$order->invoice_number}).",
                     'movement_date'  => now(),
                 ]);
-                // === END TAMBAHAN MRP ===
+
+                // 4. 🔥 Movement waste (jika ada) — TERPISAH agar HPP & analisis efisiensi akurat
+                if ($waste > 0) {
+                    MaterialMovement::create([
+                        'material_id'    => $item->material_id,
+                        'user_id'        => auth()->id(),
+                        'movement_type'  => 'out',
+                        'sub_type'       => 'waste_scrap',
+                        'quantity'       => $waste,
+                        'unit'           => $material->unit ?? 'm2',
+                        'unit_cost'      => $unitPrice,
+                        'total_cost'     => $waste * $unitPrice,
+                        'reference_type' => 'Order',
+                        'reference_id'   => $order->id,
+                        'notes'          => "Bahan rusak/waste saat produksi (Order {$order->invoice_number}).",
+                        'movement_date'  => now(),
+                    ]);
+                }
             }
-            
+
             $old = $order->status;
             $order->update(['status' => 'processing']);
 
@@ -144,7 +174,6 @@ class ProductionQueue extends Component
                 'notes'      => 'Bahan dikonfirmasi & diambil dari gudang. Produksi dimulai (On Process).',
             ]);
 
-            // 🔔 KIRIM NOTIFIKASI KE OWNER & SUPER ADMIN
             notify('owners', new \App\Notifications\ProductionStartedNotification(
                 invoiceNumber: $order->invoice_number,
                 orderId: $order->id,
@@ -152,7 +181,8 @@ class ProductionQueue extends Component
             ));
         });
 
-        session()->flash('success', "Bahan {$order->invoice_number} ditarik. Status: ON PROCESS. Notifikasi terkirim ke Owner.");
+        session()->flash('success', "Bahan {$order->invoice_number} ditarik. Status: ON PROCESS.");
+        $this->wasteQty = []; // reset setelah submit
     }
 
     /** processing -> qc : cetak selesai, masuk meja quality control. */

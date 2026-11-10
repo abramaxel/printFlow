@@ -97,11 +97,8 @@
                         @php
                             // SAFE FALLBACK: jika mrp null, gunakan default array
                             $mrp = $material->mrp ?? [
-                                'status' => 'safe',
-                                'net_available' => 0,
-                                'avg_daily_usage' => 0,
-                                'needs_reorder' => false,
-                                'suggested_qty' => 0,
+                                'status' => 'safe', 'net_available' => 0, 'avg_daily_usage' => 0,
+                                'needs_reorder' => false, 'suggested_qty' => 0, 'urgency' => 'normal',
                             ];
                             
                             $statusColor = match($mrp['status'] ?? 'safe') {

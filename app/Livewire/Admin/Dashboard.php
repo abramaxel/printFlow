@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Material;
+use App\Models\OrderItem;
 use Carbon\Carbon;
 
 #[Layout('components.layouts.admin')]
@@ -17,45 +18,75 @@ class Dashboard extends Component
 {
     public function render()
     {
-        // CEK ROLE USER
-        if ($this->isOwner()) {
-            return view('livewire.admin.owner-dashboard', $this->ownerData());
-        } 
-        
-        if ($this->isCS()) {
-            return view('livewire.admin.cs-dashboard', $this->csData());
-        }
-
-        // Fallback untuk admin biasa atau role lain
-        return view('livewire.admin.dashboard'); 
+        return match (true) {
+            $this->isOwner() => view('livewire.admin.owner-dashboard', $this->ownerData()),
+            $this->isCS()    => view('livewire.admin.cs-dashboard', $this->csData()),
+            default          => view('livewire.admin.dashboard', [
+                'pipeline'       => $this->orderPipeline(),
+                'lowStockAlerts' => $this->criticalStockAlerts(),
+            ]),
+        };
     }
 
     private function isOwner(): bool
     {
-        // Sesuaikan dengan nama role di database Anda
         return in_array(auth()->user()->role, ['owner', 'super_admin']);
     }
 
     private function isCS(): bool
     {
-        // Sesuaikan dengan nama role di database Anda  
         return in_array(auth()->user()->role, ['cs', 'admin']);
     }
 
     /* =========================================================
        DATA UNTUK OWNER
-       ========================================================= */
+    ========================================================= */
     private function ownerData(): array
     {
         $start = Carbon::now()->startOfMonth();
         $end   = Carbon::now()->endOfMonth();
 
-        $monthlyRevenue = (float) Payment::where('status', 'verified')->whereBetween('verified_at', [$start, $end])->sum('amount');
-        $monthlyOutstanding = (float) Invoice::whereBetween('created_at', [$start, $end])->whereColumn('total_paid', '<', 'total_amount')->selectRaw('COALESCE(SUM(total_amount - total_paid), 0) AS outstanding')->value('outstanding');
-        $newOrders = Order::whereBetween('created_at', [$start, $end])->count();
-        $completedOrders = Order::where('status', 'completed')->whereBetween('updated_at', [$start, $end])->count();
+        $monthlyRevenue = (float) Payment::where('status', 'verified')
+            ->whereBetween('verified_at', [$start, $end])->sum('amount');
 
-        $pipeline = [
+        $monthlyOutstanding = (float) Invoice::whereBetween('created_at', [$start, $end])
+            ->whereColumn('total_paid', '<', 'total_amount')
+            ->selectRaw('COALESCE(SUM(total_amount - total_paid), 0) AS outstanding')
+            ->value('outstanding');
+
+        return [
+            'monthlyRevenue'     => $monthlyRevenue,
+            'monthlyOutstanding' => $monthlyOutstanding,
+            'newOrders'          => Order::whereBetween('created_at', [$start, $end])->count(),
+            'completedOrders'    => Order::where('status', 'completed')
+                                    ->whereBetween('updated_at', [$start, $end])->count(),
+            'pipeline'           => $this->orderPipeline(),
+            'chartData'          => $this->revenueChartData(),
+            'lowStockAlerts'     => $this->criticalStockAlerts(), // ← DIGANTI ke logika MRP
+        ];
+    }
+
+    /* =========================================================
+       DATA UNTUK CS
+    ========================================================= */
+    private function csData(): array
+    {
+        $startOfMonth = Carbon::now()->startOfMonth();
+
+        return [
+            'waitingInvoice'  => Order::where('status', 'waiting_invoice')->latest()->take(5)->get(),
+            'unpaidOrders'    => Order::where('status', 'unpaid')->latest()->take(5)->get(),
+            'inProduction'    => Order::whereIn('status', ['paid', 'processing', 'qc'])->count(),
+            'myCreatedOrders' => Order::whereBetween('created_at', [$startOfMonth, Carbon::now()])->count(),
+        ];
+    }
+
+    /* =========================================================
+       HELPER BERSAMA (DRY — dipakai Owner & Fallback)
+    ========================================================= */
+    private function orderPipeline(): array
+    {
+        return [
             'waiting_invoice' => Order::where('status', 'waiting_invoice')->count(),
             'unpaid'          => Order::where('status', 'unpaid')->count(),
             'paid'            => Order::where('status', 'paid')->count(),
@@ -63,62 +94,73 @@ class Dashboard extends Component
             'qc'              => Order::where('status', 'qc')->count(),
             'shipping'        => Order::where('status', 'shipping')->count(),
         ];
-
-        return [
-            'monthlyRevenue' => $monthlyRevenue,
-            'monthlyOutstanding' => $monthlyOutstanding,
-            'newOrders' => $newOrders,
-            'completedOrders' => $completedOrders,
-            'pipeline' => $pipeline,
-            'chartData' => $this->revenueChartData(),
-            'lowStockAlerts' => $this->lowStockAlerts(),
-        ];
-    }
-
-    /* =========================================================
-       DATA UNTUK CS
-       ========================================================= */
-    private function csData(): array
-    {
-        $waitingInvoice = Order::where('status', 'waiting_invoice')->latest()->take(5)->get();
-        $unpaidOrders = Order::where('status', 'unpaid')->latest()->take(5)->get();
-        $inProduction = Order::whereIn('status', ['paid', 'processing', 'qc'])->count();
-        $startOfMonth = Carbon::now()->startOfMonth();
-        $myCreatedOrders = Order::whereBetween('created_at', [$startOfMonth, Carbon::now()])->count();
-
-        return [
-            'waitingInvoice' => $waitingInvoice,
-            'unpaidOrders' => $unpaidOrders,
-            'inProduction' => $inProduction,
-            'myCreatedOrders' => $myCreatedOrders,
-        ];
     }
 
     private function revenueChartData(): array
     {
         $labels = []; $values = []; $counts = [];
+
         for ($i = 5; $i >= 0; $i--) {
             $month = Carbon::now()->subMonths($i);
-            $stats = Payment::where('status', 'verified')->whereBetween('verified_at', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()])->selectRaw('SUM(amount) as total, COUNT(*) as count')->first();
+            $stats = Payment::where('status', 'verified')
+                ->whereBetween('verified_at', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()])
+                ->selectRaw('SUM(amount) as total, COUNT(*) as count')
+                ->first();
+
             $labels[] = $month->format('M Y');
             $values[] = (float) ($stats->total ?? 0);
             $counts[] = (int) ($stats->count ?? 0);
         }
+
         return ['labels' => $labels, 'values' => $values, 'counts' => $counts];
     }
 
-    private function lowStockAlerts()
+        /**
+     * ALERT STOK MENIPIS — logika MRP (SINKRON dgn Materials & Purchase Request)
+     * Kunci output disamakan dgn owner-dashboard.blade.php:
+     *   status / net_available / minimum_stock / pipeline / unit / name / id
+     * Efisiensi: 2 query, TANPA N+1, read-only (tidak menulis PR).
+     */
+    private function criticalStockAlerts(): array
     {
-        return Material::where('is_active', true)->where('stock', '>', 0)
-            ->whereRaw('stock - stock_reserved < (stock * 0.20)')
-            ->selectRaw('*, (stock - stock_reserved) as available')
-            ->orderByRaw('(stock - stock_reserved) / NULLIF(stock, 0) ASC')->limit(8)->get()
-            ->map(fn ($m) => [
-                'name' => $m->name, 
-                'stock' => (float)$m->stock, 
-                'available' => max(0, $m->stock - $m->stock_reserved),
-                'percentage' => $m->stock > 0 ? round((max(0, $m->stock - $m->stock_reserved) / $m->stock) * 100, 1) : 0,
-                'severity' => (max(0, $m->stock - $m->stock_reserved) / $m->stock * 100) < 10 ? 'critical' : (((max(0, $m->stock - $m->stock_reserved) / $m->stock * 100) < 30) ? 'warning' : 'low'),
-            ]);
+        $pipelineDemand = OrderItem::whereIn('order_id',
+            Order::whereIn('status', ['paid', 'processing'])->pluck('id')
+        )
+            ->selectRaw('material_id, SUM(area_m2) AS total')
+            ->groupBy('material_id')
+            ->pluck('total', 'material_id');
+
+        return Material::with('category')
+            ->where('is_active', true)
+            ->get()
+            ->map(function ($m) use ($pipelineDemand) {
+                $available = (float)$m->stock - (float)($m->stock_reserved ?? 0);
+                $net       = $available - (float)($pipelineDemand[$m->id] ?? 0);
+                $minimum   = (float)($m->minimum_stock ?? 0);
+
+                $status = match (true) {
+                    $net <= 0        => 'out_of_stock',
+                    $net <= $minimum => 'critical',
+                    default          => 'safe',
+                };
+
+                return [
+                    'id'            => $m->id,
+                    'name'          => $m->name,
+                    'unit'          => $m->unit ?? 'm²',
+                    'stock'         => (float)$m->stock,
+                    'reserved'      => (float)($m->stock_reserved ?? 0),
+                    'available'     => $available,
+                    'pipeline'      => (float)($pipelineDemand[$m->id] ?? 0),
+                    'net_available' => $net,
+                    'minimum_stock' => $minimum,
+                    'status'        => $status,
+                ];
+            })
+            ->filter(fn($row) => $row['status'] !== 'safe')
+            ->sortBy(fn($row) => $row['net_available'])
+            ->take(8)
+            ->values()
+            ->all();
     }
 }
