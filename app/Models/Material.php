@@ -14,17 +14,10 @@ class Material extends Model
     ];
 
     protected $casts = [
-        'stock' => 'decimal:2',
-        'stock_reserved' => 'decimal:2',
-        'price' => 'decimal:2',
-        'minimum_stock' => 'integer',
-        'maximum_stock' => 'integer',
-        'lead_time_days' => 'integer',
-        'ordering_cost' => 'decimal:2',
-        'holding_cost_rate' => 'decimal:2',
-        'is_batch_tracked' => 'boolean',
-        'shelf_life_days' => 'integer',
-        'is_active' => 'boolean',
+        'stock' => 'decimal:2', 'stock_reserved' => 'decimal:2', 'price' => 'decimal:2',
+        'minimum_stock' => 'integer', 'maximum_stock' => 'integer', 'lead_time_days' => 'integer',
+        'ordering_cost' => 'decimal:2', 'holding_cost_rate' => 'decimal:2',
+        'is_batch_tracked' => 'boolean', 'shelf_life_days' => 'integer', 'is_active' => 'boolean',
     ];
 
     // === RELASI ===
@@ -34,62 +27,55 @@ class Material extends Model
     public function batches()          { return $this->hasMany(MaterialBatch::class)->where('status', 'active'); }
     public function purchaseRequests() { return $this->hasMany(PurchaseRequest::class); }
 
-    // === AKSESSOR (cast aman, anti-null) ===
+    // === AKSESSOR (guard null + float, anti‑deprecation PHP 8) ===
     public function getAvailableStockAttribute(): float
     {
-        return max(0, (float)$this->stock - (float)($this->stock_reserved ?? 0));
+        return max(0, (float) $this->stock - (float) ($this->stock_reserved ?? 0));
     }
 
     public function getStockStatusAttribute(): string
     {
         $available = $this->available_stock;
         if ($available <= 0) return 'out_of_stock';
-        if ($available <= (float)($this->minimum_stock ?? 0)) return 'critical';
-        if ($available <= (float)($this->threshold ?? 0)) return 'warning';
+        if ($available <= (float) ($this->minimum_stock ?? 0)) return 'critical';
+        if ($available <= (float) ($this->threshold ?? 0)) return 'warning';
         return 'safe';
     }
 
-    // === METHOD MRP ===
+    // === METHOD MRP (satu‑satunya sumber kebenaran; render()/calculateMrpMetrics() DIHAPUS) ===
     public function calculateEoq(float $annualDemand): float
     {
-        $holdingCost = (float)$this->price * (float)($this->holding_cost_rate ?? 0.20);
+        $holdingCost = (float) $this->price * (float) ($this->holding_cost_rate ?? 0.20);
         if ($holdingCost <= 0) return $annualDemand;
-        return sqrt((2 * $annualDemand * (float)($this->ordering_cost ?? 50000)) / $holdingCost);
+        return sqrt((2 * $annualDemand * (float) ($this->ordering_cost ?? 50000)) / $holdingCost);
     }
 
     public function calculateRop(): float
     {
-        $avgDailyUsage = $this->getAverageDailyUsage(30);
-        $safetyStock = (float)($this->minimum_stock ?? 0);
-        return ((float)($this->lead_time_days ?? 3) * $avgDailyUsage) + $safetyStock;
+        return ((float) ($this->lead_time_days ?? 3) * $this->getAverageDailyUsage(30))
+             + (float) ($this->minimum_stock ?? 0);
     }
 
-    // PENTING: hanya 'production_issue' — waste & opname TIDAK mencemari ROP/EOQ
+    // HANYA production_issue → waste & opname TIDAK mencemari ROP/EOQ
     public function getAverageDailyUsage(int $days = 30): float
     {
-        if ($days <= 0) return 0;
-        $totalUsage = MaterialMovement::where('material_id', $this->id)
+        if ($days <= 0) return 0.0;
+        $total = MaterialMovement::where('material_id', $this->id)
             ->where('movement_type', 'out')
             ->where('sub_type', 'production_issue')
             ->where('movement_date', '>=', now()->subDays($days))
             ->sum('quantity');
-        return (float)$totalUsage / $days;
+        return (float) $total / $days;
     }
 
-    public function needsReorder(): bool
-    {
-        return $this->available_stock <= $this->calculateRop();
-    }
+    public function needsReorder(): bool { return $this->available_stock <= $this->calculateRop(); }
 
     public function getPipelineDemand(): float
     {
-        return (float)OrderItem::where('material_id', $this->id)
-            ->whereHas('order', fn($q) => $q->whereIn('status', ['paid', 'processing']))
+        return (float) OrderItem::where('material_id', $this->id)
+            ->whereHas('order', fn ($q) => $q->whereIn('status', ['paid', 'processing']))
             ->sum('area_m2');
     }
 
-    public function getNetAvailableStock(): float
-    {
-        return $this->available_stock - $this->getPipelineDemand();
-    }
+    public function getNetAvailableStock(): float { return $this->available_stock - $this->getPipelineDemand(); }
 }

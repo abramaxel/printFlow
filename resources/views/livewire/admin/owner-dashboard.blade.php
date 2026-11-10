@@ -86,9 +86,9 @@
                     <p class="text-xs text-gray-500 mt-0.5">Basis: net available vs minimum stock (ROP)</p>
                 </div>
                 @if(!empty($lowStockAlerts))
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700">
-                        {{ count($lowStockAlerts) }} kritis
-                    </span>
+                    <a href="{{ route('admin.purchase-requests') }}" class="text-xs font-semibold text-red-600 hover:underline">Lihat PR →</a>
+                @else
+                    <a href="{{ route('admin.materials') }}" class="text-xs font-semibold text-gray-500 hover:underline">Kelola Bahan →</a>
                 @endif
             </div>
 
