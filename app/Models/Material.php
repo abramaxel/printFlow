@@ -26,8 +26,9 @@ class Material extends Model
     public function movements()        { return $this->hasMany(MaterialMovement::class); }
     public function batches()          { return $this->hasMany(MaterialBatch::class)->where('status', 'active'); }
     public function purchaseRequests() { return $this->hasMany(PurchaseRequest::class); }
+    public function serviceBomItems()  { return $this->hasMany(ServiceBomItem::class); }
 
-    // === AKSESSOR (guard null + float, anti‑deprecation PHP 8) ===
+    // === AKSESSOR ===
     public function getAvailableStockAttribute(): float
     {
         return max(0, (float) $this->stock - (float) ($this->stock_reserved ?? 0));
@@ -42,7 +43,7 @@ class Material extends Model
         return 'safe';
     }
 
-    // === METHOD MRP (satu‑satunya sumber kebenaran; render()/calculateMrpMetrics() DIHAPUS) ===
+    // === METHOD MRP DOMAIN ===
     public function calculateEoq(float $annualDemand): float
     {
         $holdingCost = (float) $this->price * (float) ($this->holding_cost_rate ?? 0.20);
@@ -52,11 +53,9 @@ class Material extends Model
 
     public function calculateRop(): float
     {
-        return ((float) ($this->lead_time_days ?? 3) * $this->getAverageDailyUsage(30))
-             + (float) ($this->minimum_stock ?? 0);
+        return ((float) ($this->lead_time_days ?? 3) * $this->getAverageDailyUsage(30)) + (float) ($this->minimum_stock ?? 0);
     }
 
-    // HANYA production_issue → waste & opname TIDAK mencemari ROP/EOQ
     public function getAverageDailyUsage(int $days = 30): float
     {
         if ($days <= 0) return 0.0;

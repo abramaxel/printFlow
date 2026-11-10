@@ -399,20 +399,16 @@ class OrderFinance extends Component
     }
 
     /* ============ STOK ============ */
-    private function reserveStock($order): void
+     private function reserveStock($order): void
     {
-        foreach ($order->items as $item) {
-            Material::where('id', $item->material_id)->increment('stock_reserved', $item->area_m2);
-        }
+        // Delegasikan ke MRP Engine agar menggunakan ledakan BOM + scrap allowance
+        app(\App\Services\MrpEngine::class)->reserveOrderStock($order);
     }
 
-    private function releaseStock($order): void
+     private function releaseStock($order): void
     {
-        foreach ($order->items as $item) {
-            Material::where('id', $item->material_id)
-                ->where('stock_reserved', '>=', $item->area_m2)
-                ->decrement('stock_reserved', $item->area_m2);
-        }
+        // Delegasikan ke MRP Engine untuk release yang akurat
+        app(\App\Services\MrpEngine::class)->releaseOrderStock($order);
     }
 
     /* ============ PEMBATALAN INVOICE ============ */

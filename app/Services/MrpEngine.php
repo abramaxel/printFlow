@@ -352,4 +352,69 @@ class MrpEngine
             'needed_by_date' => now()->addDays($material->lead_time_days ?? 3)->toDateString(),
         ]);
     }
+
+    /**
+     * Reservasi stok untuk SELURUH order berdasarkan ledakan BOM.
+     * Standar Internasional: Group by material untuk menghindari duplikasi reservasi.
+     */
+    public function reserveOrderStock(Order $order): void
+    {
+        DB::transaction(function () use ($order) {
+            $requirements = $this->calculateOrderRequirements($order);
+
+            foreach ($requirements as $req) {
+                $material = Material::find($req['material_id']);
+                if (!$material) continue;
+
+                // 1. Kunci stok
+                $material->increment('stock_reserved', $req['total_needed']);
+
+                // 2. Catat Audit Trail
+                MaterialMovement::create([
+                    'material_id'    => $material->id,
+                    'user_id'        => auth()->id(),
+                    'movement_type'  => 'reserve',
+                    'sub_type'       => 'bom_order_reservation',
+                    'quantity'       => $req['total_needed'],
+                    'unit'           => $req['unit'],
+                    'unit_cost'      => 0,
+                    'total_cost'     => 0,
+                    'reference_type' => 'Order',
+                    'reference_id'   => $order->id,
+                    'notes'          => "Reservasi BOM untuk Order #{$order->id}. Detail: " . json_encode(array_column($req['details'], 'material_name')),
+                    'movement_date'  => now(),
+                ]);
+            }
+        });
+    }
+
+    /**
+     * Lepas reservasi stok untuk seluruh order.
+     */
+    public function releaseOrderStock(Order $order): void
+    {
+        DB::transaction(function () use ($order) {
+            $requirements = $this->calculateOrderRequirements($order);
+
+            foreach ($requirements as $req) {
+                $material = Material::find($req['material_id']);
+                if (!$material) continue;
+
+                $material->decrement('stock_reserved', $req['total_needed']);
+
+                MaterialMovement::create([
+                    'material_id'    => $material->id,
+                    'user_id'        => auth()->id(),
+                    'movement_type'  => 'release',
+                    'sub_type'       => 'bom_reservation_release',
+                    'quantity'       => $req['total_needed'],
+                    'unit'           => $req['unit'],
+                    'reference_type' => 'Order',
+                    'reference_id'   => $order->id,
+                    'notes'          => "Release reservasi BOM untuk Order #{$order->id}",
+                    'movement_date'  => now(),
+                ]);
+            }
+        });
+    }
 }

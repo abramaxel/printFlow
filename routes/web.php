@@ -108,7 +108,7 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/admin/inventory', \App\Livewire\Admin\InventoryDashboard::class)->name('admin.inventory');
     Route::get('/admin/stock-opname', \App\Livewire\Admin\StockOpname::class)->name('admin.stock-opname');
     Route::get('/admin/material-audit-trail', \App\Livewire\Admin\MaterialAuditTrail::class)->name('admin.material-audit-trail');
-    
+    Route::get('/admin/service-boms', \App\Livewire\Admin\ServiceBoms::class)->name('admin.service-boms');
     // Master 
     Route::get('/admin/categories', \App\Livewire\Admin\Categories::class)->name('admin.categories');
     Route::get('/admin/services', Services::class)->name('admin.services');
