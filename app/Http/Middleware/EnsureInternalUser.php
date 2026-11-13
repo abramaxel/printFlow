@@ -22,7 +22,7 @@ class EnsureInternalUser
         if (!$request->user() || !in_array($request->user()->role, $allowedRoles)) {
             // Jika customer mencoba akses halaman admin, tendang ke dashboard customer
             if ($request->user() && $request->user()->role === 'customer') {
-                return redirect()->route('dashboard')
+                return redirect()->route('customer.dashboard')   // ✅ sesuai web.php
                     ->with('error', 'Anda tidak memiliki akses ke halaman tersebut.');
             }
             abort(403, 'Akses ditolak. Area ini khusus untuk staff internal.');

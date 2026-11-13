@@ -1,37 +1,48 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ $title ?? 'Admin Dashboard' }} - Ordering System</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    
+    <title>{{ $title ?? 'Dashboard' }} - {{ config('app.brand.name', 'FC Murni Jaya') }}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .soft-scrollbar::-webkit-scrollbar { width: 5px; }
+        .soft-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .soft-scrollbar::-webkit-scrollbar-thumb { background: #cfdfe4; border-radius: 10px; }
+        .soft-scrollbar::-webkit-scrollbar-thumb:hover { background: #b3cbd3; }
+    </style>
+
     @livewireStyles
 </head>
-<body class="bg-gray-50">
+<body class="bg-ice-100 text-gray-900 antialiased min-h-screen">
 
-    <div class="flex h-screen overflow-hidden">
-        
-        <!-- Sidebar Navigasi -->
-        <x-admin.sidebar />
+{{-- State sidebar mobile + wrapper --}}
+<div x-data="{ sidebarOpen: false }" class="min-h-screen">
 
-        <!-- Wrapper untuk Konten Utama -->
-        <div class="flex-1 flex flex-col overflow-hidden md:ml-64">
-            
-            <!-- Topbar / Navbar Atas -->
-            <x-admin.topbar />
-            
+    @include('components.admin.sidebar')
 
-            <!-- Area Konten Halaman (Dashboard, CRUD, dll) -->
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
+    {{-- Konten: tanpa margin di mobile, ml-72 mulai layar besar --}}
+    <div class="flex flex-col min-h-screen lg:ml-72">
+
+        @include('components.admin.topbar')
+
+        <main class="flex-1 px-4 sm:px-6 lg:px-8 pb-8 pt-2">
+            {{-- Batas lebar agar tidak "melar" di monitor besar --}}
+            <div class="mx-auto w-full max-w-[1600px]">
                 {{ $slot }}
-            </main>
-            
-        </div>
+            </div>
+        </main>
     </div>
 
-    @livewireScripts
-    @stack('scripts')
+</div>
+
+@livewireScripts
 </body>
 </html>

@@ -123,4 +123,12 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'brand' => [
+        'name' => env('BRAND_NAME', 'FC Murni Jaya'),
+        'logo' => env('BRAND_LOGO', ''),
+        'whatsapp' => env('BRAND_WHATSAPP', ''),
+        'address' => env('BRAND_ADDRESS', ''),
+        'hours' => env('BRAND_HOURS', 'Senin–Sabtu, 08.00–17.00'),
+    ],
+
 ];

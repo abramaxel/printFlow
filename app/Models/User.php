@@ -52,10 +52,9 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->role === self::ROLE_ADMIN || $this->role === self::ROLE_SUPER_ADMIN;
     }
 
-    public function isSuperAdmin()
+   public function isSuperAdmin(): bool
     {
-        // Khusus hanya untuk Owner
-        return $this->role === self::ROLE_SUPER_ADMIN;
+        return in_array($this->role, ['super_admin', 'owner']);
     }
 
     public function isCustomer()

@@ -328,13 +328,35 @@ class OrderFinance extends Component
 
         // 5. Tentukan Status Akhir
         if ($remaining <= 0) {
+            // LUNAS SEPENUHNYA
             $invoice->update(['status' => 'paid', 'paid_at' => now()]);
             $order->update(['status' => 'paid']);
-            session()->flash('finance_success', '✅ Pembayaran LUNAS diverifikasi! SPK terbit.');
+            session()->flash('finance_success', '✅ Pembayaran LUNAS diverifikasi! (Termasuk pelunasan dipercepat). SPK terbit.');
+
+            // 🔥 SMART CRM: Auto-Upgrade ke VIP jika total belanja mencapai threshold
+            $user = $order->user;
+            if ($user) {
+                // Hitung total belanja user dari semua invoice yang sudah 'paid'
+                $totalSpent = \App\Models\Invoice::whereHas('order', function ($q) use ($user) {
+                    $q->where('user_id', $user->id)->where('status', 'paid');
+                })->sum('total_amount');
+
+                // Threshold VIP (misal: Rp 5.000.000). Bisa disesuaikan atau dipindah ke shop_settings nanti
+                $vipThreshold = 5000000; 
+
+                if ($totalSpent >= $vipThreshold && $user->tier !== 'vip') {
+                    $user->update(['tier' => 'vip']);
+                    
+                    // Opsional: Catat di history atau kirim notifikasi
+                    \Log::info("Customer {$user->name} otomatis naik tier menjadi VIP. Total Belanja: Rp {$totalSpent}");
+                }
+            }
+
         } else {
+            // MASIH ADA SISA
             $invoice->update(['status' => 'unpaid']);
-            $order->update(['status' => 'paid']);
-            session()->flash('finance_success', '✅ Cicilan/DP diverifikasi! Sisa: Rp ' . number_format($remaining, 0, ',', '.'));
+            $order->update(['status' => 'paid']); // DP aman => SPK terbit
+            session()->flash('finance_success', '✅ Cicilan/DP diverifikasi! Sisa tagihan: Rp ' . number_format($remaining, 0, ',', '.'));
         }
 
         // 6. 🔥 TRIGGER NOTIFIKASI (Baru)

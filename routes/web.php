@@ -79,22 +79,17 @@ Route::post('/email/verification-notification', function (Request $request) {
 })->middleware(['auth', 'throttle:6,1'])->name('verification.send');
 
 // ==========================================
-// CUSTOMER DASHBOARD (HANYA untuk role 'customer')
+// CUSTOMER DASHBOARD (Panggil Livewire Component)
 // ==========================================
-Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/dashboard', function () {
-        // Guard: Hanya customer yang boleh akses /dashboard
-        if (auth()->user()->role !== 'customer') {
-            // Redirect ke admin dashboard untuk staff internal
-            $adminRoles = ['owner', 'super_admin', 'admin', 'cs', 'produksi', 'production'];
-            if (in_array(auth()->user()->role, $adminRoles)) {
-                return redirect()->route('admin.dashboard');
-            }
-            abort(403, 'Akses ditolak. Anda bukan customer.');
-        }
-        
-        return app(\App\Livewire\Customer\CustomerDashboard::class);
-    })->name('customer.dashboard');
+Route::middleware(['auth'])->group(function () {
+    Route::get('/dashboard', \App\Livewire\Customer\CustomerDashboard::class)
+        ->name('customer.dashboard');
+
+    // 🧾 PDF invoice untuk CUSTOMER (pemilik) — preview & unduh, ber-stempel LUNAS bila paid
+    Route::get('/invoice/{invoice}/pdf', [InvoiceController::class, 'preview'])
+        ->name('customer.invoices.pdf');
+    Route::get('/invoice/{invoice}/pdf/download', [InvoiceController::class, 'download'])
+        ->name('customer.invoices.download');
 });
 
 // ==========================================
@@ -104,17 +99,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // ==========================================
 Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/admin/dashboard', Dashboard::class)->name('admin.dashboard');
-    Route::get('/admin/settings', \App\Livewire\Admin\ShopSettings::class)->name('admin.settings');
-    Route::get('/admin/inventory', \App\Livewire\Admin\InventoryDashboard::class)->name('admin.inventory');
-    Route::get('/admin/stock-opname', \App\Livewire\Admin\StockOpname::class)->name('admin.stock-opname');
-    Route::get('/admin/material-audit-trail', \App\Livewire\Admin\MaterialAuditTrail::class)->name('admin.material-audit-trail');
-    Route::get('/admin/service-boms', \App\Livewire\Admin\ServiceBoms::class)->name('admin.service-boms');
-    // Master 
-    Route::get('/admin/categories', \App\Livewire\Admin\Categories::class)->name('admin.categories');
-    Route::get('/admin/services', Services::class)->name('admin.services');
-    Route::get('/admin/materials', Materials::class)->name('admin.materials');
-    Route::get('/admin/sizes', Sizes::class)->name('admin.sizes');
-    
+    Route::get('/admin/customers', \App\Livewire\Admin\Customers::class)->name('admin.customers');
+
     // Production
     Route::get('/admin/production', ProductionQueue::class)->name('admin.production');
     Route::get('/admin/production-monitor', ProductionMonitor::class)->name('admin.production-monitor');
@@ -125,15 +111,31 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/admin/orders/{order}', OrderShow::class)->name('admin.orders.show');
     Route::get('/admin/invoices/{invoice}/download', [InvoiceController::class, 'download'])->name('admin.invoices.download');
 
-    // === MODUL PURCHASING / MRP ===
-    Route::get('/admin/suppliers', \App\Livewire\Admin\Suppliers::class)->name('admin.suppliers');
-    Route::get('/admin/purchase-requests', \App\Livewire\Admin\PurchaseRequests::class)->name('admin.purchase-requests');
-    Route::get('/admin/goods-receipt', \App\Livewire\Admin\GoodsReceipt::class)->name('admin.goods-receipt');
-    Route::get('/admin/purchase-receipts/{receipt}/pdf', function (\App\Models\PurchaseReceipt $receipt) {
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('purchase-receipts.bpb', ['receipt' => $receipt]);
-        return $pdf->stream($receipt->bpb_number . '.pdf');
-    })->name('admin.purchase-receipts.pdf');
 });
+    // === MODUL GUDANG / PURCHASING (Owner, Super Admin, Produksi) ===
+    Route::middleware(['warehouse'])->group(function () {
+        Route::get('/admin/inventory', \App\Livewire\Admin\InventoryDashboard::class)->name('admin.inventory');
+        Route::get('/admin/stock-opname', \App\Livewire\Admin\StockOpname::class)->name('admin.stock-opname');
+        Route::get('/admin/material-audit-trail', \App\Livewire\Admin\MaterialAuditTrail::class)->name('admin.material-audit-trail');
+        Route::get('/admin/service-boms', \App\Livewire\Admin\ServiceBoms::class)->name('admin.service-boms');
+
+        Route::get('/admin/suppliers', \App\Livewire\Admin\Suppliers::class)->name('admin.suppliers');
+        Route::get('/admin/purchase-requests', \App\Livewire\Admin\PurchaseRequests::class)->name('admin.purchase-requests');
+        Route::get('/admin/goods-receipt', \App\Livewire\Admin\GoodsReceipt::class)->name('admin.goods-receipt');
+        Route::get('/admin/purchase-receipts/{receipt}/pdf', function (\App\Models\PurchaseReceipt $receipt) {
+            $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('purchase-receipts.bpb', ['receipt' => $receipt]);
+            return $pdf->stream($receipt->bpb_number . '.pdf');
+        })->name('admin.purchase-receipts.pdf');
+    });
+
+    // === MASTER DATA & PENGATURAN TOKO (Owner & Super Admin saja) ===
+    Route::middleware(['owner'])->group(function () {
+        Route::get('/admin/settings', \App\Livewire\Admin\ShopSettings::class)->name('admin.settings');
+        Route::get('/admin/categories', \App\Livewire\Admin\Categories::class)->name('admin.categories');
+        Route::get('/admin/services', Services::class)->name('admin.services');
+        Route::get('/admin/materials', Materials::class)->name('admin.materials');
+        Route::get('/admin/sizes', Sizes::class)->name('admin.sizes');
+    });
 
 // ==========================================
 // MAGIC LINK ROUTES (Public)

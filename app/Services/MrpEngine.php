@@ -21,7 +21,7 @@ class MrpEngine
     /**
      * Hitung kebutuhan bahan baku untuk Sales Order
      */
-    public function calculateRequirements(Order $order, int $warehouseId = 1): Collection
+    public function calculateRequirements(\App\Models\Order $order, int $warehouseId = 1): Collection
     {
         $requirements = collect();
 
@@ -356,7 +356,7 @@ class MrpEngine
         /**
      * Reservasi stok untuk SELURUH order berdasarkan ledakan BOM.
      */
-    public function reserveOrderStock(Order $order): void
+    public function reserveOrderStock(\App\Models\Order $order): void
     {
         DB::transaction(function () use ($order) {
             $requirements = $this->calculateOrderRequirements($order);
@@ -388,7 +388,7 @@ class MrpEngine
     /**
      * Lepas reservasi stok untuk seluruh order.
      */
-    public function releaseOrderStock(Order $order): void
+    public function releaseOrderStock(\App\Models\Order $order): void
     {
         DB::transaction(function () use ($order) {
             $requirements = $this->calculateOrderRequirements($order);
