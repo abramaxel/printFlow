@@ -23,9 +23,7 @@
                             <p class="text-sm font-bold text-gray-900 leading-tight group-hover:text-brand-600 transition-colors">{{ auth()->user()->name }}</p>
                             <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{{ auth()->user()->role }}</p>
                         </div>
-                        <div class="h-9 w-9 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-sm shadow-sm">
-                            {{ strtoupper(substr(auth()->user()->name, 0, 1)) }}
-                        </div>
+                        <x-avatar :src="auth()->user()->avatar_url" :name="auth()->user()->name" size="sm" shape="circle" fallback="bg-brand-100 text-brand-700 font-bold" class="shadow-sm" />
                     </button>
 
                     <div x-show="open" @click.away="open = false" x-transition class="absolute right-0 mt-3 w-48 bg-white rounded-xl shadow-lg py-1 z-50">

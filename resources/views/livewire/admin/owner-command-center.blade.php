@@ -61,9 +61,10 @@
     {{-- 1. HERO ROW --}}
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
         {{-- HERO PETROL + SIGNAL LIME --}}
-        <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-800 via-brand-600 to-brand-500 p-6 text-white shadow-lg shadow-brand-600/30">
-            <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full"></div>
-            <div class="absolute -bottom-16 -right-4 w-48 h-48 bg-signal-400/10 rounded-full"></div>
+        <div class="forest-hero relative overflow-hidden rounded-2xl p-6 text-white shadow-lg shadow-brand-950/40">
+            <div class="forest-dots absolute inset-0 opacity-60"></div>
+            <div class="absolute -top-10 -right-10 w-40 h-40 bg-signal-400/10 rounded-full blur-2xl"></div>
+            <div class="absolute -bottom-16 -right-4 w-48 h-48 bg-emerald-500/10 rounded-full blur-2xl"></div>
             <div class="relative z-10">
                 <div class="flex items-center justify-between mb-4">
                     <span class="text-xs font-bold uppercase tracking-wider text-brand-100">Pendapatan {{ $period === 'month' ? 'Bulan Ini' : ($period === '30d' ? '30 Hari' : '7 Hari') }}</span>

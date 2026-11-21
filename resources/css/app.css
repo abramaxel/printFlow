@@ -1,21 +1,23 @@
 @import "tailwindcss";
 
 @theme {
-    /* ============ BRAND = BLUE PETROL ============ */
-    --color-brand-50: #f0f7f9;
-    --color-brand-100: #d9ecf0;
-    --color-brand-200: #b6d9e1;
-    --color-brand-300: #86bcc9;
-    --color-brand-400: #4f9bad;
-    --color-brand-500: #2f8095;
-    --color-brand-600: #22687c;
-    --color-brand-700: #1e5464;
-    --color-brand-800: #1c4654;
-    --color-brand-900: #1a3b47;
-    --color-brand-950: #0e2630;
+    /* ============ BRAND = FOREST GREEN (persis hero Profil) ============
+       Nada gelap yang Anda tunjuk: #0a3f33 → #062e25 → #03201a.
+       Semua tombol, pill, badge, chart, dan gradient brand-* ikut nada ini. */
+    --color-brand-50:  #eef7f1;
+    --color-brand-100: #d3ecdd;
+    --color-brand-200: #a8d8bc;
+    --color-brand-300: #6fbb95;
+    --color-brand-400: #37906b;
+    --color-brand-500: #1d6247;
+    --color-brand-600: #0a3f33;
+    --color-brand-700: #062e25;
+    --color-brand-800: #03201a;
+    --color-brand-900: #021710;
+    --color-brand-950: #010d09;
 
     /* ============ WHITE ICE ============ */
-    --color-ice-50: #f7fbfc;
+    --color-ice-50:  #f7fbfc;
     --color-ice-100: #eef5f7;
     --color-ice-200: #e2edf0;
     --color-ice-300: #cfdfe4;
@@ -30,10 +32,10 @@
     --color-signal-600: #86b00b;
     --color-signal-700: #65860e;
 
-    /* ============ DARK (petrol-tinted, untuk panel login) ============ */
-    --color-dark-800: #1c4654;
-    --color-dark-900: #123640;
-    --color-dark-950: #0a2229;
+    /* ============ DARK = green-black ============ */
+    --color-dark-800: #0a3f33;
+    --color-dark-900: #062e25;
+    --color-dark-950: #03201a;
 
     --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
 }
@@ -41,3 +43,21 @@
 body {
     font-family: var(--font-sans);
 }
+
+/* ============ HERO FOREST: latar imersif yang sama dengan halaman Profil ============ */
+.forest-hero {
+    background:
+        radial-gradient(ellipse at top left, rgba(6, 95, 70, 0.55), transparent 60%),
+        radial-gradient(ellipse at bottom right, rgba(200, 236, 63, 0.10), transparent 55%),
+        linear-gradient(135deg, #0a3f33 0%, #062e25 55%, #03201a 100%);
+}
+.forest-dots {
+    background-image: radial-gradient(rgba(200, 236, 63, 0.14) 1px, transparent 1px);
+    background-size: 22px 22px;
+}
+
+/* Scrollbar global selaras palet */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--color-ice-100); }
+::-webkit-scrollbar-thumb { background: var(--color-brand-400); border-radius: 8px; border: 2px solid var(--color-ice-100); }
+::-webkit-scrollbar-thumb:hover { background: var(--color-brand-600); }

@@ -42,7 +42,31 @@
     </div>
 
 </div>
-
+    <script>
+        window.copyText = function (text, btn) {
+            var done = function () {
+                if (!btn) return;
+                var old = btn.innerHTML;
+                btn.innerHTML = '<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
+                setTimeout(function () { btn.innerHTML = old; }, 1600);
+            };
+            var fallback = function () {
+                var ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); done(); } catch (e) {}
+                document.body.removeChild(ta);
+            };
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(done).catch(fallback);
+            } else {
+                fallback();
+            }
+        };
+    </script>
 @livewireScripts
 </body>
 </html>

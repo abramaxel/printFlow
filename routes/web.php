@@ -42,6 +42,9 @@ Route::get('/', function () {
     }
     return redirect()->route('login');
 });
+Route::get('/media/avatar/{user}', [\App\Http\Controllers\AvatarController::class, 'show'])
+    ->middleware('auth')
+    ->name('media.avatar');
 
 // ==========================================
 // LOGOUT
@@ -90,6 +93,12 @@ Route::middleware(['auth'])->group(function () {
         ->name('customer.invoices.pdf');
     Route::get('/invoice/{invoice}/pdf/download', [InvoiceController::class, 'download'])
         ->name('customer.invoices.download');
+    Route::get('/profile', \App\Livewire\Customer\CustomerProfile::class)
+        ->name('customer.profile');
+    Route::get('/riwayat', \App\Livewire\Customer\CustomerHistory::class)
+        ->name('customer.history');
+    Route::get('/pengaturan', \App\Livewire\Customer\CustomerSettings::class)
+        ->name('customer.settings');    
 });
 
 // ==========================================
@@ -110,14 +119,15 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/admin/orders/create', OrderCreate::class)->name('admin.orders.create');
     Route::get('/admin/orders/{order}', OrderShow::class)->name('admin.orders.show');
     Route::get('/admin/invoices/{invoice}/download', [InvoiceController::class, 'download'])->name('admin.invoices.download');
-
 });
+
     // === MODUL GUDANG / PURCHASING (Owner, Super Admin, Produksi) ===
     Route::middleware(['warehouse'])->group(function () {
         Route::get('/admin/inventory', \App\Livewire\Admin\InventoryDashboard::class)->name('admin.inventory');
         Route::get('/admin/stock-opname', \App\Livewire\Admin\StockOpname::class)->name('admin.stock-opname');
         Route::get('/admin/material-audit-trail', \App\Livewire\Admin\MaterialAuditTrail::class)->name('admin.material-audit-trail');
         Route::get('/admin/service-boms', \App\Livewire\Admin\ServiceBoms::class)->name('admin.service-boms');
+        Route::get('/admin/production/requests', \App\Livewire\Admin\ProductionRequests::class)->name('admin.production.requests');
 
         Route::get('/admin/suppliers', \App\Livewire\Admin\Suppliers::class)->name('admin.suppliers');
         Route::get('/admin/purchase-requests', \App\Livewire\Admin\PurchaseRequests::class)->name('admin.purchase-requests');
@@ -136,6 +146,8 @@ Route::middleware(['auth', 'internal'])->group(function () {
         Route::get('/admin/materials', Materials::class)->name('admin.materials');
         Route::get('/admin/sizes', Sizes::class)->name('admin.sizes');
     });
+
+    
 
 // ==========================================
 // MAGIC LINK ROUTES (Public)

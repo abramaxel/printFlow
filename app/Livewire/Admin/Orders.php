@@ -7,6 +7,9 @@ use Livewire\Attributes\Layout;
 use Livewire\Attributes\Title;
 use Livewire\WithPagination;
 use App\Models\Order;
+use App\Models\Invoice;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 #[Layout('components.layouts.admin')]
 #[Title('Daftar Pesanan')]
@@ -18,31 +21,31 @@ class Orders extends Component
     public $statusFilter = '';
     public $sortBy = 'created_at';
     public $sortDirection = 'desc';
+    public bool $hasTracking = false;
 
     protected $queryString = [
-        'search' => ['except' => ''],
-        'statusFilter' => ['except' => ''],
-        'sortBy' => ['except' => 'created_at'],
+        'search'        => ['except' => ''],
+        'statusFilter'  => ['except' => ''],
+        'sortBy'        => ['except' => 'created_at'],
         'sortDirection' => ['except' => 'desc'],
     ];
 
-    public function mount()
+    public function mount(): void
     {
-        // Baca filter dari URL parameter (untuk link "Perlu Tindak Lanjut" di sidebar)
-        $this->statusFilter = request('status', $this->statusFilter);
+        $this->statusFilter = (string) request('status', $this->statusFilter);
+        $this->hasTracking  = Schema::hasColumn('orders', 'tracking_number');
     }
 
-    public function updatingSearch()
+    public function updatingSearch(): void { $this->resetPage(); }
+    public function updatingStatusFilter(): void { $this->resetPage(); }
+
+    public function setFilter(string $value): void
     {
+        $this->statusFilter = $value;
         $this->resetPage();
     }
 
-    public function updatingStatusFilter()
-    {
-        $this->resetPage();
-    }
-
-    public function clearFilters()
+    public function clearFilters(): void
     {
         $this->search = '';
         $this->statusFilter = '';
@@ -51,101 +54,155 @@ class Orders extends Component
         $this->resetPage();
     }
 
-    public function setSortBy($column)
+    public function setSortBy($column): void
     {
+        if (!in_array($column, ['created_at', 'invoice_number', 'status'], true)) return;
+
         if ($this->sortBy === $column) {
             $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
         } else {
             $this->sortBy = $column;
             $this->sortDirection = 'asc';
         }
+        $this->resetPage();
+    }
+
+    public function groups(): array
+    {
+        return [
+            ''            => ['label' => 'Semua',          'statuses' => null],
+            'need_action' => ['label' => 'Perlu Tindakan', 'statuses' => ['waiting_invoice', 'unpaid']],
+            'production'  => ['label' => 'Produksi',       'statuses' => ['paid', 'processing', 'qc']],
+            'shipping'    => ['label' => 'Dikirim',        'statuses' => ['shipping']],
+            'completed'   => ['label' => 'Selesai',        'statuses' => ['completed']],
+            'cancelled'   => ['label' => 'Batal',          'statuses' => ['cancelled']],
+        ];
     }
 
     public function render()
     {
-        $userRole = auth()->user()->role;
+        $userRole   = (string) auth()->user()->role;
+        $restricted = in_array($userRole, ['cs', 'admin'], true);
+
+        $sort = in_array($this->sortBy, ['created_at', 'invoice_number', 'status'], true) ? $this->sortBy : 'created_at';
+        $dir  = $this->sortDirection === 'asc' ? 'asc' : 'desc';
+
+        $scope = function ($q) use ($restricted) {
+            if ($restricted) $q->whereNotIn('status', ['completed', 'cancelled']);
+            return $q;
+        };
+
+        $agg = $scope(Order::query())
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw("SUM(CASE WHEN status IN ('waiting_invoice','unpaid') THEN 1 ELSE 0 END) as need_action")
+            ->selectRaw("SUM(CASE WHEN status IN ('paid','processing','qc') THEN 1 ELSE 0 END) as production")
+            ->selectRaw("SUM(CASE WHEN status = 'shipping' THEN 1 ELSE 0 END) as shipping")
+            ->selectRaw("SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed")
+            ->selectRaw("SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled")
+            ->first();
+
+        $counts = [
+            ''            => (int) ($agg->total ?? 0),
+            'need_action' => (int) ($agg->need_action ?? 0),
+            'production'  => (int) ($agg->production ?? 0),
+            'shipping'    => (int) ($agg->shipping ?? 0),
+            'completed'   => (int) ($agg->completed ?? 0),
+            'cancelled'   => (int) ($agg->cancelled ?? 0),
+        ];
 
         $query = Order::with(['user', 'invoice', 'items.service']);
+        $scope($query);
 
-        //  FIX BUG: Group search dengan benar agar tidak mengacaukan filter status
-        if ($this->search) {
-            $query->where(function ($q) {
-                $q->where('invoice_number', 'like', '%' . $this->search . '%')
-                  ->orWhereHas('user', function ($uq) {
-                      $uq->where('name', 'like', '%' . $this->search . '%');
-                  })
-                  ->orWhereHas('invoice', function ($iq) {
-                      $iq->where('tracking_number', 'like', '%' . $this->search . '%');
+        $term = trim((string) $this->search);
+        if ($term !== '') {
+            $like   = '%' . $term . '%';
+            $lower  = '%' . mb_strtolower($term) . '%';
+            $digits = preg_replace('/\D+/', '', $term) ?? '';
+            $phoneExpr = DB::connection()->getDriverName() === 'pgsql'
+                ? "regexp_replace(coalesce(phone,''), '[^0-9]', '', 'g')"
+                : "coalesce(phone,'')";
+            $hasTracking = $this->hasTracking;
+
+            $query->where(function ($q) use ($like, $lower, $digits, $phoneExpr, $hasTracking) {
+                $q->whereRaw('LOWER(invoice_number) LIKE ?', [$lower])
+                  ->orWhereHas('user', function ($u) use ($lower, $digits, $phoneExpr) {
+                      $u->whereRaw('LOWER(name) LIKE ?', [$lower])
+                        ->orWhereRaw('LOWER(email) LIKE ?', [$lower]);
+                      if (strlen($digits) >= 4) {
+                          $u->orWhereRaw($phoneExpr . ' LIKE ?', ['%' . $digits . '%']);
+                      }
                   });
+                if ($hasTracking) $q->orWhereRaw('LOWER(tracking_number) LIKE ?', [$lower]);
             });
         }
 
-        // Filter berdasarkan status
-        if ($this->statusFilter) {
-            $query->where('status', $this->statusFilter);
+        $groups = $this->groups();
+        if ($this->statusFilter !== '') {
+            if (isset($groups[$this->statusFilter]) && $groups[$this->statusFilter]['statuses']) {
+                $query->whereIn('status', $groups[$this->statusFilter]['statuses']);
+            } else {
+                $query->where('status', $this->statusFilter);
+            }
         }
 
-        // 🔥 ROLE-BASED FILTERING: CS tidak perlu lihat order selesai/dibatalkan
-        if (in_array($userRole, ['cs', 'admin'])) {
-            $query->whereNotIn('status', ['completed', 'cancelled']);
-        }
+        $orders = $query->orderBy($sort, $dir)->orderBy('id', 'desc')->paginate(15);
 
-        // Sorting
-        $query->orderBy($this->sortBy, $this->sortDirection);
+        $revenue = (float) Invoice::whereHas('order', fn($q) => $scope($q))->sum('total_paid');
 
-        $orders = $query->paginate(15);
-
-        // Hitung jumlah per status untuk badge di sidebar (opsional, bisa dipindah ke dashboard)
-        $statusCounts = Order::selectRaw('status, COUNT(*) as count')
-            ->groupBy('status')
-            ->pluck('count', 'status');
-
-        return view('livewire.admin.orders', compact('orders', 'statusCounts', 'userRole'));
+        return view('livewire.admin.orders', [
+            'orders'     => $orders,
+            'counts'     => $counts,
+            'groups'     => $groups,
+            'revenue'    => $revenue,
+            'userRole'   => $userRole,
+            'restricted' => $restricted,
+            'statusCounts' => collect($counts),
+        ]);
     }
 
-    /**
-     * Helper untuk warna badge status
-     */
     public function getStatusColor($status)
     {
         return match ($status) {
-            'waiting_invoice' => 'bg-gray-100 text-gray-700',
-            'unpaid'          => 'bg-yellow-100 text-yellow-700',
-            'paid'            => 'bg-blue-100 text-blue-700',
-            'processing'      => 'bg-indigo-100 text-indigo-700',
-            'qc'              => 'bg-purple-100 text-purple-700',
-            'shipping'        => 'bg-cyan-100 text-cyan-700',
-            'completed'       => 'bg-green-100 text-green-700',
-            'cancelled'       => 'bg-red-100 text-red-700',
-            'rejected'        => 'bg-red-100 text-red-700',
-            default           => 'bg-gray-100 text-gray-700',
+            'waiting_invoice' => 'bg-ice-200 text-brand-800',
+            'unpaid'          => 'bg-red-100 text-red-700',
+            'paid'            => 'bg-brand-100 text-brand-700',
+            'processing'      => 'bg-brand-200 text-brand-800',
+            'qc'              => 'bg-brand-300 text-brand-900',
+            'shipping'        => 'bg-signal-200 text-signal-700',
+            'completed'       => 'bg-signal-400 text-brand-950',
+            'cancelled', 'rejected' => 'bg-ice-300 text-gray-600',
+            default           => 'bg-ice-200 text-brand-800',
         };
     }
 
-    /**
-     * Helper untuk format status (Title Case yang benar)
-     */
     public function formatStatus($status)
     {
-        return ucwords(str_replace('_', ' ', $status));
+        return match ($status) {
+            'waiting_invoice' => 'Menunggu Invoice',
+            'unpaid'          => 'Belum Dibayar',
+            'paid'            => 'Dibayar',
+            'processing'      => 'Diproses',
+            'qc'              => 'Quality Control',
+            'shipping'        => 'Dikirim',
+            'completed'       => 'Selesai',
+            'cancelled'       => 'Dibatalkan',
+            'rejected'        => 'Ditolak',
+            default           => ucwords(str_replace('_', ' ', (string) $status)),
+        };
     }
 
-    /**
-     * Helper untuk ikon status
-     */
     public function getStatusIcon($status)
     {
         return match ($status) {
-            'waiting_invoice' => '📄',
-            'unpaid'          => '⏳',
-            'paid'            => '✅',
-            'processing'      => '🔧',
-            'qc'              => '🔍',
-            'shipping'        => '🚚',
-            'completed'       => '🎉',
-            'cancelled'       => '❌',
-            'rejected'        => '🚫',
-            default           => '📦',
+            'waiting_invoice' => 'invoice',
+            'unpaid'          => 'alert',
+            'paid'            => 'card',
+            'processing'      => 'printer',
+            'qc'              => 'shield',
+            'shipping'        => 'truck',
+            'completed'       => 'check',
+            'cancelled', 'rejected' => 'x',
+            default           => 'box',
         };
     }
 }

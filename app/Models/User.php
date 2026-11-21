@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -25,6 +27,10 @@ class User extends Authenticatable implements MustVerifyEmail
         'role',
         'phone',
         'address',
+        'address_detail',
+        'is_guest',
+        'tier',
+        'internal_notes',
         'status',
         'avatar',
     ];
@@ -40,6 +46,18 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+        /**
+     * URL avatar yang aman: null bila file tidak ada, agar UI jatuh ke inisial.
+     */
+    protected function avatarUrl(): Attribute
+    {
+        return Attribute::get(function (?string $value) {
+            if (!$value) return null;
+            if (str_starts_with($value, 'http')) return $value;
+
+            return Storage::disk('public')->exists($value) ? Storage::url($value) : null;
+        });
     }
 
     // ==========================================

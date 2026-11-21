@@ -70,6 +70,19 @@
                 BOM Layanan
             </a>
         @endif
+        
+        @if($isWarehouse)
+            @php $prMine = \App\Models\PurchaseRequest::where('status', 'pending')->count(); @endphp
+            <a href="{{ route('admin.production.requests') }}" class="flex items-center justify-between px-3 py-2.5 rounded-xl transition-colors {{ $nav('admin.production.requests') }}">
+                <span class="flex items-center gap-3">
+                    <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                    Ajukan PR
+                </span>
+                @if($prMine > 0)
+                    <span class="bg-amber-400 text-brand-950 text-[10px] font-bold px-2 py-0.5 rounded-full">{{ $prMine }}</span>
+                @endif
+            </a>
+        @endif
 
         {{-- MASTER DATA --}}
         @if(in_array($userRole, ['owner', 'super_admin']))
