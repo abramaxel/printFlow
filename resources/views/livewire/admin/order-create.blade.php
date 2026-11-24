@@ -201,7 +201,7 @@
                                 <label for="oc-gname" class="block text-base font-extrabold text-brand-950 mb-2">Nama Pelanggan <span class="text-red-500">*</span></label>
                                 <div class="relative">
                                     <span class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-brand-400">{!! $oic('user', 'w-5 h-5') !!}</span>
-                                    <input id="oc-gname" wire:model="guest_name" @input="gname = $event.target.value" type="text" autocomplete="off"
+                                    <input id="oc-gname" wire:model.live.debounce.250ms="guest_name" @input="gname = $event.target.value" type="text" autocomplete="off"
                                            class="oc-field w-full pl-12 pr-4 py-3.5 text-base border border-ice-300 rounded-2xl bg-ice-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/25 focus:border-brand-500 @error('guest_name') border-red-400 bg-red-50 @enderror">
                                 </div>
                                 @error('guest_name') <p class="mt-2 text-sm font-semibold text-red-600">{{ $message }}</p> @enderror
@@ -210,7 +210,7 @@
                                 <label for="oc-gphone" class="block text-base font-extrabold text-brand-950 mb-2">No. Telepon / WhatsApp <span class="text-red-500">*</span></label>
                                 <div class="relative">
                                     <span class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-brand-400">{!! $oic('phone', 'w-5 h-5') !!}</span>
-                                    <input id="oc-gphone" wire:model="guest_phone" @input="gphone = $event.target.value" type="tel" inputmode="tel" autocomplete="off" placeholder="08xxxxxxxxxx"
+                                    <input id="oc-gphone" wire:model.live.debounce.250ms="guest_phone" @input="gphone = $event.target.value" type="tel" inputmode="tel" autocomplete="off" placeholder="08xxxxxxxxxx"
                                            class="oc-field w-full pl-12 pr-4 py-3.5 text-base tabular-nums border border-ice-300 rounded-2xl bg-ice-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/25 focus:border-brand-500 @error('guest_phone') border-red-400 bg-red-50 @enderror">
                                 </div>
                                 @error('guest_phone') <p class="mt-2 text-sm font-semibold text-red-600">{{ $message }}</p> @enderror
@@ -219,7 +219,7 @@
                                 <label for="oc-gmail" class="block text-base font-extrabold text-brand-950 mb-2">Email <span class="text-gray-400 font-semibold">(opsional)</span></label>
                                 <div class="relative">
                                     <span class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-brand-400">{!! $oic('mail', 'w-5 h-5') !!}</span>
-                                    <input id="oc-gmail" wire:model="guest_email" type="email" autocomplete="off" placeholder="nama@contoh.com"
+                                    <input id="oc-gmail" wire:model.live.debounce.250ms="guest_email" type="email" autocomplete="off" placeholder="nama@contoh.com"
                                            class="oc-field w-full pl-12 pr-4 py-3.5 text-base border border-ice-300 rounded-2xl bg-ice-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/25 focus:border-brand-500 @error('guest_email') border-red-400 bg-red-50 @enderror">
                                 </div>
                                 @error('guest_email') <p class="mt-2 text-sm font-semibold text-red-600">{{ $message }}</p> @enderror

@@ -60,8 +60,8 @@ Route::post('/logout', function () {
 // AUTH ROUTES (Guest Only)
 // ==========================================
 Route::middleware('guest')->group(function () {
-    Route::get('/register', Register::class)->name('register');
-    Route::get('/login', Login::class)->name('login');
+    Route::get('/login', \App\Livewire\Auth\Login::class)->name('login');
+    Route::get('/lupa-password', \App\Livewire\Auth\ForgotPassword::class)->name('password.request');
 });
 
 // ==========================================
@@ -109,6 +109,7 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/admin/dashboard', Dashboard::class)->name('admin.dashboard');
     Route::get('/admin/customers', \App\Livewire\Admin\Customers::class)->name('admin.customers');
+    Route::get('/admin/account', \App\Livewire\Admin\StaffSettings::class)->name('admin.account');
 
     // Production
     Route::get('/admin/production', ProductionQueue::class)->name('admin.production');
@@ -119,7 +120,8 @@ Route::middleware(['auth', 'internal'])->group(function () {
     Route::get('/admin/orders/create', OrderCreate::class)->name('admin.orders.create');
     Route::get('/admin/orders/{order}', OrderShow::class)->name('admin.orders.show');
     Route::get('/admin/invoices/{invoice}/download', [InvoiceController::class, 'download'])->name('admin.invoices.download');
-});
+    Route::get('/admin/payment-channels', \App\Livewire\Admin\PaymentChannels::class)->name('admin.payment-channels');
+    });
 
     // === MODUL GUDANG / PURCHASING (Owner, Super Admin, Produksi) ===
     Route::middleware(['warehouse'])->group(function () {
@@ -154,3 +156,8 @@ Route::middleware(['auth', 'internal'])->group(function () {
 // ==========================================
 Route::get('/bayar/{token}', [PaymentController::class, 'show'])->name('payment.show');
 Route::post('/bayar/{token}', [PaymentController::class, 'upload'])->name('payment.upload');
+
+Route::middleware('guest')->group(function () {
+    Route::get('/daftar', \App\Livewire\Auth\Register::class)->name('register');
+    Route::redirect('/register', '/daftar');
+});

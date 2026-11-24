@@ -22,3 +22,13 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# JUNK-GUARD v1
+*.bak
+*.orig
+*.tmp
+*.rej
+check-*.php
+test-*.php
+debug-*.php
+_trash_*/
